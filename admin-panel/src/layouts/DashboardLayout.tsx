@@ -7,7 +7,8 @@ import {
     UsersRound,
     Menu,
     LogOut,
-    Library
+    Library,
+    Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -20,6 +21,7 @@ const sidebarItems = [
     { icon: Users, label: "Users", href: "/users" },
     { icon: MessageSquare, label: "Comments", href: "/comments" },
     { icon: UsersRound, label: "Community", href: "/community" },
+    { icon: Calendar, label: "Eventos", href: "/events" },
 ];
 
 export default function DashboardLayout() {

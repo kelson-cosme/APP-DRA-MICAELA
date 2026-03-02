@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, BookOpen, Pencil } from "lucide-react";
+import { Plus, Trash2, BookOpen, Pencil, FolderPlus } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -85,6 +85,12 @@ export default function Courses() {
 
     const handleSaveCourse = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!categoryId) {
+            alert("Por favor, selecione ou crie uma categoria para o curso.");
+            return;
+        }
+
         setLoading(true);
 
         let thumbnailUrl = editingCourse?.thumbnail_url || "";
@@ -197,12 +203,31 @@ export default function Courses() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>Category</Label>
+                            <div className="flex items-center justify-between">
+                                <Label>Category</Label>
+                                <Button type="button" variant="ghost" size="sm" onClick={async () => {
+                                    const name = window.prompt("Nome da nova categoria:");
+                                    if (!name?.trim()) return;
+                                    setLoading(true);
+                                    const { data, error } = await supabase.from("categories").insert({ name: name.trim() }).select().single();
+                                    if (error) {
+                                        alert("Erro ao criar categoria: " + error.message);
+                                    } else if (data) {
+                                        setCategories([...categories, data]);
+                                        setCategoryId(data.id);
+                                    }
+                                    setLoading(false);
+                                }} className="h-6 px-2 text-xs">
+                                    <FolderPlus className="w-3 h-3 mr-1" /> Nova Categoria
+                                </Button>
+                            </div>
                             <select
                                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                 value={categoryId}
                                 onChange={e => setCategoryId(e.target.value)}
+                                required
                             >
+                                <option value="" disabled>Selecione uma categoria</option>
                                 {categories.map(cat => (
                                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                                 ))}

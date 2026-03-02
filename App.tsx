@@ -10,7 +10,10 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import VideoPlayerScreen from './src/screens/Content/VideoPlayerScreen';
 import DownloadsScreen from './src/screens/DownloadsScreen';
 import { StatusBar } from 'expo-status-bar';
+import NotificationsScreen from './src/screens/NotificationsScreen';
 import SplashScreen from './src/components/SplashScreen';
+
+import { UserProvider } from './src/contexts/UserContext';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,27 +36,30 @@ export default function App() {
   const showSplash = !authReady || !splashFinished;
 
   return (
-    <View style={{ flex: 1 }}>
-      <NavigationContainer>
-        <StatusBar style="light" />
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!authReady ? (
-            <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
-          ) : !session ? (
-            <Stack.Screen name="Login" component={LoginScreen} />
-          ) : (
-            <>
-              <Stack.Screen name="HomeTabs" component={TabNavigator} />
-              <Stack.Screen name="Profile" component={ProfileScreen} />
-              <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
-              <Stack.Screen name="Downloads" component={DownloadsScreen} />
-            </>
-          )}
-        </Stack.Navigator>
-      </NavigationContainer>
-      {showSplash && (
-        <SplashScreen onAnimationComplete={() => setSplashFinished(true)} />
-      )}
-    </View>
+    <UserProvider>
+      <View style={{ flex: 1 }}>
+        <NavigationContainer>
+          <StatusBar style="light" />
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            {!authReady ? (
+              <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
+            ) : !session ? (
+              <Stack.Screen name="Login" component={LoginScreen} />
+            ) : (
+              <>
+                <Stack.Screen name="HomeTabs" component={TabNavigator} />
+                <Stack.Screen name="Profile" component={ProfileScreen} />
+                <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
+                <Stack.Screen name="Downloads" component={DownloadsScreen} />
+                <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              </>
+            )}
+          </Stack.Navigator>
+        </NavigationContainer>
+        {showSplash && (
+          <SplashScreen onAnimationComplete={() => setSplashFinished(true)} />
+        )}
+      </View>
+    </UserProvider>
   );
 }

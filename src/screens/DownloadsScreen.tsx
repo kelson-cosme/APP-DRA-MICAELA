@@ -4,13 +4,26 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, Play, Trash2, Download } from 'lucide-react-native';
 import { OfflineStorage, DownloadedEpisode } from '../lib/OfflineStorage';
-import { Video, ResizeMode } from 'expo-av';
+import { Video, ResizeMode, Audio } from 'expo-av';
 
 export default function DownloadsScreen() {
     const navigation = useNavigation<any>();
     const [downloads, setDownloads] = useState<DownloadedEpisode[]>([]);
     const [refreshing, setRefreshing] = useState(false);
     const [playingEpisode, setPlayingEpisode] = useState<DownloadedEpisode | null>(null);
+
+    useEffect(() => {
+        const configureAudio = async () => {
+            try {
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                });
+            } catch (e) {
+                console.warn('Failed to configure audio mode:', e);
+            }
+        };
+        configureAudio();
+    }, []);
 
     const loadDownloads = async () => {
         const data = await OfflineStorage.getDownloads();

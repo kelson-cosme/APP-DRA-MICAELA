@@ -7,6 +7,7 @@ import Videos from "@/pages/Videos";
 import Users from "@/pages/Users";
 import Comments from "@/pages/Comments";
 import Community from "@/pages/Community";
+import Events from "@/pages/Events";
 import Login from "@/pages/Login";
 import RequireAuth from "@/components/RequireAuth";
 
@@ -25,6 +26,7 @@ function App() {
             <Route path="users" element={<Users />} />
             <Route path="comments" element={<Comments />} />
             <Route path="community" element={<Community />} />
+            <Route path="events" element={<Events />} />
           </Route>
         </Route>
       </Routes>

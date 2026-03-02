@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, RefreshControl, Dimensions } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
-import { ResizeMode, Video } from 'expo-av';
+import { ResizeMode, Video, Audio } from 'expo-av';
 import { supabase } from '../../lib/supabase';
 import { ChevronLeft, Send, Heart, MessageSquare, Maximize2, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +32,16 @@ export default function VideoPlayerScreen() {
     const videoRef = useRef<Video>(null);
 
     useEffect(() => {
+        const configureAudio = async () => {
+            try {
+                await Audio.setAudioModeAsync({
+                    playsInSilentModeIOS: true,
+                });
+            } catch (e) {
+                console.warn('Failed to configure audio mode:', e);
+            }
+        };
+        configureAudio();
         fetchEpisodeData();
     }, [episodeId]);
 

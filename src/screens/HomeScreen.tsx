@@ -5,31 +5,52 @@ import { Bell, Play, Calendar as CalendarIcon, MessageCircle, Users, Home } from
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useUser } from '../contexts/UserContext';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 export default function HomeScreen() {
     const navigation = useNavigation<any>();
-    const [userName, setUserName] = React.useState('Maria');
-    const [avatarUrl, setAvatarUrl] = React.useState<string | null>(null);
+    const { profile, loading: profileLoading, refreshProfile } = useUser();
+
+    // Call the push notification hook to register the device when Home mounts
+    usePushNotifications();
+
     const [refreshing, setRefreshing] = React.useState(false);
+    const [unreadCount, setUnreadCount] = React.useState(0);
+
+    const userName = profile?.full_name || 'Maria';
+    const avatarUrl = profile?.avatar_url || null;
 
     useFocusEffect(
         React.useCallback(() => {
-            fetchUserData();
+            fetchUnreadNotifications();
         }, [])
     );
 
-    const fetchUserData = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-            setUserName(user.user_metadata?.full_name || 'Maria');
-            setAvatarUrl(user.user_metadata?.avatar_url || null);
+    const fetchUnreadNotifications = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { count, error } = await supabase
+                .from('notifications')
+                .select('*', { count: 'exact', head: true })
+                .eq('user_id', user.id)
+                .eq('read', false);
+
+            if (!error && count !== null) {
+                setUnreadCount(count);
+            }
+        } catch (error) {
+            console.error('Error fetching unread notifications:', error);
         }
-        setRefreshing(false);
     };
 
-    const onRefresh = () => {
+    const onRefresh = async () => {
         setRefreshing(true);
-        fetchUserData();
+        await refreshProfile();
+        await fetchUnreadNotifications();
+        setRefreshing(false);
     };
 
     return (
@@ -54,8 +75,13 @@ export default function HomeScreen() {
                                 className="w-full h-full"
                             />
                         </TouchableOpacity>
-                        <TouchableOpacity>
+                        <TouchableOpacity className="relative" onPress={() => navigation.navigate('Notifications')}>
                             <Bell color="white" size={24} />
+                            {unreadCount > 0 && (
+                                <View className="absolute -top-1 -right-1 bg-red-500 rounded-full w-4 h-4 items-center justify-center">
+                                    <Text className="text-white text-[10px] font-bold">{unreadCount > 9 ? '9+' : unreadCount}</Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     </View>
 

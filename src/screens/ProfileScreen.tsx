@@ -9,29 +9,22 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 
+import { useUser } from '../contexts/UserContext';
+
 export default function ProfileScreen() {
     const navigation = useNavigation<any>();
+    const { profile, updateProfileState } = useUser();
     const [loading, setLoading] = useState(false);
-    const [fullName, setFullName] = useState('');
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-    const [email, setEmail] = useState('');
+    const [fullName, setFullName] = useState(profile?.full_name || '');
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+    const email = profile?.email || '';
 
     useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-                setEmail(user.email || '');
-                setFullName(user.user_metadata?.full_name || '');
-                setAvatarUrl(user.user_metadata?.avatar_url || null);
-            }
-        } catch (error) {
-            console.error('Error fetching profile:', error);
+        if (profile) {
+            setFullName(profile.full_name);
+            setAvatarUrl(profile.avatar_url);
         }
-    };
+    }, [profile]);
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
@@ -106,11 +99,27 @@ export default function ProfileScreen() {
     const handleSave = async () => {
         try {
             setLoading(true);
-            const { error } = await supabase.auth.updateUser({
+            const { error, data: { user } } = await supabase.auth.updateUser({
                 data: { full_name: fullName, avatar_url: avatarUrl }
             });
 
             if (error) throw error;
+
+            // Update the public.profiles table so it reflects in the Community feed
+            if (user) {
+                const { error: profileError } = await supabase.from('profiles').upsert({
+                    id: user.id,
+                    full_name: fullName,
+                    avatar_url: avatarUrl
+                }, { onConflict: 'id' });
+
+                if (profileError) {
+                    console.warn("Could not update public profile:", profileError);
+                }
+            }
+
+            // Sync with global state immediately
+            updateProfileState({ full_name: fullName, avatar_url: avatarUrl });
 
             Alert.alert('Sucesso', 'Perfil atualizado!');
         } catch (error: any) {
