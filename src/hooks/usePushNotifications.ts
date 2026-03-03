@@ -56,17 +56,14 @@ export function usePushNotifications() {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session?.user) return; // Só salva se tiver logado
 
-            // Tenta inserir (vai falhar se o token já existir igualzinho, por causa do UNIQUE)
+            // Usa a RPC para registrar o token, evitando erros de RLS quando
+            // outro usuário loga no mesmo dispositivo
             const { error } = await supabase
-                .from('user_push_tokens')
-                .upsert({
-                    user_id: session.user.id,
-                    expo_push_token: token
-                }, {
-                    onConflict: 'expo_push_token'
+                .rpc('register_push_token', {
+                    push_token: token
                 });
 
-            if (error && error.code !== '23505') { // ignora erro de duplicidade se for a mesma pessoa
+            if (error) {
                 console.error('Falha ao salvar token no supabase:', error);
             }
         } catch (e) {
