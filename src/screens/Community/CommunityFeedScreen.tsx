@@ -4,6 +4,8 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { Heart, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Animatable from 'react-native-animatable';
+import * as Haptics from 'expo-haptics';
 
 interface Post {
     id: string;
@@ -100,6 +102,9 @@ export default function CommunityFeedScreen() {
     const handleLike = async (postId: string) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        // Feedback Tátil (Haptics)
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         // Optimistic Update
         const isLiked = likedPostIds.has(postId);
@@ -201,11 +206,18 @@ export default function CommunityFeedScreen() {
                                     className="flex-row items-center gap-2"
                                     onPress={() => handleLike(post.id)}
                                 >
-                                    <Heart
-                                        color={likedPostIds.has(post.id) ? "#E50914" : "white"}
-                                        fill={likedPostIds.has(post.id) ? "#E50914" : "transparent"}
-                                        size={20}
-                                    />
+                                    <Animatable.View
+                                        key={likedPostIds.has(post.id) ? 'liked' : 'unliked'}
+                                        animation={likedPostIds.has(post.id) ? 'bounceIn' : undefined}
+                                        duration={500}
+                                        useNativeDriver
+                                    >
+                                        <Heart
+                                            color={likedPostIds.has(post.id) ? "#E50914" : "white"}
+                                            fill={likedPostIds.has(post.id) ? "#E50914" : "transparent"}
+                                            size={20}
+                                        />
+                                    </Animatable.View>
                                     <Text className="text-gray-300 text-sm">
                                         {post.community_likes?.[0]?.count || 0} Curtidas
                                     </Text>

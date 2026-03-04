@@ -29,21 +29,29 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
 
         // Ouve mudanças de auth (login/logout)
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            if (session?.user) {
-                const { data: publicProfile } = await supabase
-                    .from('profiles')
-                    .select('full_name, avatar_url')
-                    .eq('id', session.user.id)
-                    .single();
+            try {
+                if (session?.user) {
+                    const { data: publicProfile, error } = await supabase
+                        .from('profiles')
+                        .select('full_name, avatar_url')
+                        .eq('id', session.user.id)
+                        .maybeSingle();
 
-                setProfile({
-                    id: session.user.id,
-                    email: session.user.email || null,
-                    full_name: publicProfile?.full_name || session.user.user_metadata?.full_name || '',
-                    avatar_url: publicProfile?.avatar_url || session.user.user_metadata?.avatar_url || null,
-                });
-            } else {
-                setProfile(null);
+                    if (error) {
+                        console.warn("Erro ao buscar publicProfile no onAuthStateChange:", error);
+                    }
+
+                    setProfile({
+                        id: session.user.id,
+                        email: session.user.email || null,
+                        full_name: publicProfile?.full_name || session.user.user_metadata?.full_name || '',
+                        avatar_url: publicProfile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                    });
+                } else {
+                    setProfile(null);
+                }
+            } catch (err) {
+                console.error("Erro inesperado no onAuthStateChange:", err);
             }
         });
 
@@ -58,11 +66,15 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                const { data: publicProfile } = await supabase
+                const { data: publicProfile, error } = await supabase
                     .from('profiles')
                     .select('full_name, avatar_url')
                     .eq('id', user.id)
-                    .single();
+                    .maybeSingle();
+
+                if (error) {
+                    console.warn("Erro ao buscar publicProfile no fetchUserData:", error);
+                }
 
                 setProfile({
                     id: user.id,

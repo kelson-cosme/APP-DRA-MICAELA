@@ -4,6 +4,8 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { Heart, MessageSquare, Send, ChevronLeft, Trash2 } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Animatable from 'react-native-animatable';
+import * as Haptics from 'expo-haptics';
 
 export default function PostDetailScreen() {
     const route = useRoute<any>();
@@ -107,6 +109,9 @@ export default function PostDetailScreen() {
     const handleLike = async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+
+        // Feedback Tátil
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
         if (hasLiked) {
             await supabase.from('community_likes').delete().eq('post_id', postId).eq('user_id', user.id);
@@ -215,7 +220,14 @@ export default function PostDetailScreen() {
                                     className="flex-row items-center gap-2"
                                     onPress={handleLike}
                                 >
-                                    <Heart color={hasLiked ? "#E50914" : "white"} fill={hasLiked ? "#E50914" : "transparent"} size={24} />
+                                    <Animatable.View
+                                        key={hasLiked ? 'liked' : 'unliked'}
+                                        animation={hasLiked ? 'bounceIn' : undefined}
+                                        duration={500}
+                                        useNativeDriver
+                                    >
+                                        <Heart color={hasLiked ? "#E50914" : "white"} fill={hasLiked ? "#E50914" : "transparent"} size={24} />
+                                    </Animatable.View>
                                     <Text className="text-gray-300 text-sm">{likesCount} Curtidas</Text>
                                 </TouchableOpacity>
 

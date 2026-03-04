@@ -85,44 +85,42 @@ export default function ContentDetailScreen() {
     const fetchDetails = async () => {
         try {
             setLoading(true);
-            const { data: contentData, error: contentError } = await supabase
-                .from('contents')
-                .select('*')
-                .eq('id', contentId)
-                .single();
 
-            const { data: modulesData, error: modulesError } = await supabase
-                .from('modules')
-                .select('*')
-                .eq('content_id', contentId)
-                .order('order', { ascending: true });
+            // Iniciar todas as promessas de banco de dados concorrentemente (Promise.all)
+            const [
+                contentResult,
+                modulesResult,
+                episodesResult,
+                userResult
+            ] = await Promise.all([
+                supabase.from('contents').select('*').eq('id', contentId).single(),
+                supabase.from('modules').select('*').eq('content_id', contentId).order('order', { ascending: true }),
+                supabase.from('episodes').select('*').eq('content_id', contentId).order('order', { ascending: true }),
+                supabase.auth.getUser()
+            ]);
 
-            const { data: episodesData, error: episodesError } = await supabase
-                .from('episodes')
-                .select('*')
-                .eq('content_id', contentId)
-                .order('order', { ascending: true });
+            if (contentResult.error) throw contentResult.error;
+            if (modulesResult.error) throw modulesResult.error;
+            if (episodesResult.error) throw episodesResult.error;
 
-            if (contentError) throw contentError;
-            if (modulesError) throw modulesError;
-            if (episodesError) throw episodesError;
-
-            setContent(contentData);
-            setModules(modulesData || []);
-            setEpisodes(episodesData || []);
+            setContent(contentResult.data);
+            setModules(modulesResult.data || []);
+            setEpisodes(episodesResult.data || []);
 
             // Fetch User Progress
-            const { data: { user } } = await supabase.auth.getUser();
+            const user = userResult.data.user;
+            const episodesData = episodesResult.data;
+
             if (user && episodesData && episodesData.length > 0) {
                 const epIds = episodesData.map(e => e.id);
-                const { data: progressData } = await supabase
+                const { data: progressData, error: progressError } = await supabase
                     .from('user_episode_progress')
                     .select('episode_id')
                     .eq('user_id', user.id)
                     .eq('completed', true)
                     .in('episode_id', epIds);
 
-                if (progressData) {
+                if (!progressError && progressData) {
                     setCompletedEpisodeIds(new Set(progressData.map(p => p.episode_id)));
                 }
             }

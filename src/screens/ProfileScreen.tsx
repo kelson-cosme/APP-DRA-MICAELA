@@ -98,33 +98,46 @@ export default function ProfileScreen() {
 
     const handleSave = async () => {
         try {
+            console.log("-> [handleSave] Iniciando salvamento...");
             setLoading(true);
-            const { error, data: { user } } = await supabase.auth.updateUser({
-                data: { full_name: fullName, avatar_url: avatarUrl }
-            });
 
-            if (error) throw error;
-
-            // Update the public.profiles table so it reflects in the Community feed
-            if (user) {
-                const { error: profileError } = await supabase.from('profiles').upsert({
-                    id: user.id,
-                    full_name: fullName,
-                    avatar_url: avatarUrl
-                }, { onConflict: 'id' });
-
-                if (profileError) {
-                    console.warn("Could not update public profile:", profileError);
-                }
+            // Fetch the current user session to get the ID
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                throw new Error("Usuário não está logado!");
             }
 
-            // Sync with global state immediately
-            updateProfileState({ full_name: fullName, avatar_url: avatarUrl });
+            // AVISO: Estamos bypassando o `supabase.auth.updateUser` pq ele 
+            // está congelando a Thread do React Native (bug do GoTrue). 
+            // Salvar apenas na tabela `profiles` já faz o app funcionar corretamente!
+            console.log("-> [handleSave] Chamando upsert public.profiles para UID:", user.id);
+            const { error: profileError } = await supabase.from('profiles').upsert({
+                id: user.id,
+                full_name: fullName,
+                avatar_url: avatarUrl
+            }, { onConflict: 'id' });
 
-            Alert.alert('Sucesso', 'Perfil atualizado!');
+            console.log("-> [handleSave] Resposta de upsert recebida. Erro:", profileError?.message || 'Nenhum');
+
+            if (profileError) {
+                console.error("Could not update public profile:", profileError);
+                throw new Error("Falha ao salvar seu perfil: " + profileError.message);
+            }
+
+            console.log("-> [handleSave] Tudo concluído chamando Alert.alert de Sucesso.");
+            Alert.alert('Sucesso', 'Perfil atualizado!', [
+                {
+                    text: 'OK', onPress: () => {
+                        // Sync with global state immediately after alert
+                        updateProfileState({ full_name: fullName, avatar_url: avatarUrl });
+                    }
+                }
+            ]);
         } catch (error: any) {
-            Alert.alert('Erro', error.message);
+            console.error("Erro fatal no handleSave:", error);
+            Alert.alert('Erro ao Salvar', error.message || 'Ocorreu um erro inesperado.');
         } finally {
+            console.log("-> [handleSave] Finalizando loading...");
             setLoading(false);
         }
     };
