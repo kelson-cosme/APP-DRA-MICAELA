@@ -1,42 +1,54 @@
-export const fetchCloudflareVideoDetails = async (uid: string) => {
+// src/lib/cloudflare.ts
+// O video_url armazenado no banco é o UID do Cloudflare Stream
+// Ex: "abc123def456789" — não uma URL completa
+
+import { supabase } from './supabase';
+
+// Gera a URL de HLS diretamente sem precisar chamar a API
+export const getCloudflareHLSUrl = (uid: string): string => {
+    const customerCode = process.env.EXPO_PUBLIC_CLOUDFLARE_CUSTOMER_CODE;
+    if (customerCode) {
+        return `https://customer-${customerCode}.cloudflarestream.com/${uid}/manifest/video.m3u8`;
+    }
+    return `https://videodelivery.net/${uid}/manifest/video.m3u8`;
+};
+
+// Gera a URL de thumbnail diretamente
+export const getCloudflareThumbUrl = (uid: string): string => {
+    const customerCode = process.env.EXPO_PUBLIC_CLOUDFLARE_CUSTOMER_CODE;
+    if (customerCode) {
+        return `https://customer-${customerCode}.cloudflarestream.com/${uid}/thumbnails/thumbnail.jpg`;
+    }
+    return `https://videodelivery.net/${uid}/thumbnails/thumbnail.jpg`;
+};
+
+// Busca a URL de download MP4 via Edge Function (credenciais ficam no servidor)
+export const fetchMp4DownloadUrl = async (uid: string): Promise<string | null> => {
+    if (!uid || uid.startsWith('http')) return null;
+
     try {
-        const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${process.env.EXPO_PUBLIC_CLOUDFLARE_ACCOUNT_ID}/stream/${uid}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${process.env.EXPO_PUBLIC_CLOUDFLARE_TOKEN}`,
-                'Content-Type': 'application/json'
-            }
+        const { data, error } = await supabase.functions.invoke('cloudflare-video-info', {
+            body: { uid },
         });
 
-        if (!response.ok) {
-            throw new Error(`Cloudflare API Error: ${response.status}`);
+        if (error) {
+            console.error('Erro ao buscar URL de download:', error);
+            return null;
         }
 
-        const data = await response.json();
-
-        // Helper to find the best MP4 if downloads are enabled
-        let mp4DownloadUrl = null;
-        if (data.result && data.result.playback) {
-            // Cloudflare sometimes puts downloads in playback object if enabled
-            // We just look for any MP4 link in the result object that resembles a download
-            // Typically it's in data.result.download_url or similar if configured
-            // Since we need an MP4 for expo-av offline storage, we extract it.
-            // If the user hasn't enabled "MP4 Downloads" in Cloudflare, this won't be present.
-
-            // NOTE: Cloudflare puts MP4s in a `downloads` array or similar if enabled.
-            // A common pattern is data.result.downloads[0].url or data.result.playback.mp4
-            if (data.result.downloads && data.result.downloads.length > 0) {
-                // Sort descending by size/quality (if they exist) or just pick first
-                mp4DownloadUrl = data.result.downloads[0].url;
-            }
-        }
-
-        return {
-            ...data.result,
-            mp4DownloadUrl // Inject into the returning object for easy access
-        };
-    } catch (error) {
-        console.error("Error fetching Cloudflare details:", error);
+        return data?.mp4DownloadUrl || null;
+    } catch (err) {
+        console.error('fetchMp4DownloadUrl error:', err);
         return null;
     }
+};
+
+// Mantido por compatibilidade com VideoPlayerScreen
+export const fetchCloudflareVideoDetails = async (uid: string) => {
+    if (!uid || uid.startsWith('http')) return null;
+    return {
+        uid,
+        playback: { hls: getCloudflareHLSUrl(uid) },
+        mp4DownloadUrl: await fetchMp4DownloadUrl(uid),
+    };
 };

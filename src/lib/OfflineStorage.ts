@@ -1,25 +1,25 @@
+// src/lib/OfflineStorage.ts
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { fetchCloudflareVideoDetails } from './cloudflare';
+import { fetchMp4DownloadUrl, getCloudflareThumbUrl } from './cloudflare';
 
 export interface DownloadedEpisode {
     id: string;
     title: string;
     description: string;
-    thumbnail_url: string; // Remote URL
-    video_url: string; // Remote URL
-    local_video_uri: string; // Local file URI
-    local_thumbnail_uri: string; // Local file URI
+    thumbnail_url: string;
+    video_url: string;
+    local_video_uri: string;
+    local_thumbnail_uri: string;
     duration: number;
     downloaded_at: number;
     size?: number;
-    content_title?: string; // Course title
+    content_title?: string;
 }
 
 const METADATA_KEY = '@offline_downloads';
 const DOWNLOAD_DIR = (FileSystem.documentDirectory || '') + 'downloads/';
 
-// Ensure directory exists
 const ensureDirExists = async () => {
     const dirInfo = await FileSystem.getInfoAsync(DOWNLOAD_DIR);
     if (!dirInfo.exists) {
@@ -28,40 +28,33 @@ const ensureDirExists = async () => {
 };
 
 export const OfflineStorage = {
-    // Get all downloaded episodes metadata
     getDownloads: async (): Promise<DownloadedEpisode[]> => {
         try {
             const json = await AsyncStorage.getItem(METADATA_KEY);
             return json ? JSON.parse(json) : [];
-        } catch (error) {
-            console.error('Error getting downloads:', error);
+        } catch {
             return [];
         }
     },
 
-    // Check if an episode is downloaded
     isDownloaded: async (episodeId: string): Promise<boolean> => {
         const downloads = await OfflineStorage.getDownloads();
         return downloads.some(d => d.id === episodeId);
     },
 
-    // Save download metadata
     saveDownloadMetadata: async (episode: DownloadedEpisode) => {
         const downloads = await OfflineStorage.getDownloads();
-        // Remove existing if any (update)
         const filtered = downloads.filter(d => d.id !== episode.id);
         filtered.push(episode);
         await AsyncStorage.setItem(METADATA_KEY, JSON.stringify(filtered));
     },
 
-    // Remove download metadata
     removeDownloadMetadata: async (episodeId: string) => {
         const downloads = await OfflineStorage.getDownloads();
         const filtered = downloads.filter(d => d.id !== episodeId);
         await AsyncStorage.setItem(METADATA_KEY, JSON.stringify(filtered));
     },
 
-    // Download an episode
     downloadEpisode: async (
         episode: any,
         contentTitle: string,
@@ -69,87 +62,77 @@ export const OfflineStorage = {
     ): Promise<DownloadedEpisode> => {
         await ensureDirExists();
 
-        // Check for MP4 download availability via Cloudflare API
-        // episode.video_url is assumed to be the Cloudflare UID
-        const cfData = await fetchCloudflareVideoDetails(episode.video_url);
-
-        if (!cfData || !cfData.mp4DownloadUrl) {
-            throw new Error("Este vídeo não possui a opção de download habilitada no Cloudflare.");
+        if (!episode.video_url) {
+            throw new Error('Este episódio não possui vídeo associado.');
         }
 
-        const videoDownloadUrl = cfData.mp4DownloadUrl;
+        // Busca URL de download MP4 via Edge Function (seguro, sem expor credenciais)
+        const mp4Url = await fetchMp4DownloadUrl(episode.video_url);
 
-        // 1. Download Thumbnail
+        if (!mp4Url) {
+            throw new Error(
+                'Download offline não disponível para este vídeo.\n\n' +
+                'O vídeo pode ainda estar sendo processado. Tente novamente em alguns minutos.'
+            );
+        }
+
+        // 1. Download da thumbnail
         let localThumbnailUri = '';
-        if (episode.thumbnail_url) {
-            const thumbFilename = `thumb_${episode.id}.jpg`;
-            const thumbDest = DOWNLOAD_DIR + thumbFilename;
-            try {
-                const { uri } = await FileSystem.downloadAsync(episode.thumbnail_url, thumbDest);
-                localThumbnailUri = uri;
-            } catch (e) {
-                console.warn('Failed to download thumbnail', e);
-                // Fallback to remote or empty
-            }
+        const thumbnailUrl = episode.thumbnail_url || getCloudflareThumbUrl(episode.video_url);
+        try {
+            const thumbDest = DOWNLOAD_DIR + `thumb_${episode.id}.jpg`;
+            const { uri } = await FileSystem.downloadAsync(thumbnailUrl, thumbDest);
+            localThumbnailUri = uri;
+        } catch (e) {
+            console.warn('Failed to download thumbnail:', e);
         }
 
-        // 2. Download Video
-        const videoFilename = `vid_${episode.id}.mp4`; // Assuming mp4 for now
-        const videoDest = DOWNLOAD_DIR + videoFilename;
-
+        // 2. Download do vídeo MP4
+        const videoDest = DOWNLOAD_DIR + `vid_${episode.id}.mp4`;
         const downloadResumable = FileSystem.createDownloadResumable(
-            videoDownloadUrl, // Use the extracted MP4 URL from Cloudflare API
+            mp4Url,
             videoDest,
             {},
             (downloadProgress) => {
                 const progress = downloadProgress.totalBytesExpectedToWrite > 0
                     ? downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite
                     : 0;
-                if (onProgress) onProgress(progress);
+                onProgress?.(progress);
             }
         );
 
         const result = await downloadResumable.downloadAsync();
+        if (!result?.uri) throw new Error('Download falhou. Tente novamente.');
 
-        if (!result || !result.uri) {
-            throw new Error('Download failed');
-        }
+        const fileInfo = await FileSystem.getInfoAsync(result.uri);
+        const fileSize = fileInfo.exists && 'size' in fileInfo ? fileInfo.size : undefined;
 
-        // 3. Save Metadata
+        // 3. Salva metadados
         const downloadedEp: DownloadedEpisode = {
             id: episode.id,
             title: episode.title,
-            description: episode.description,
-            thumbnail_url: episode.thumbnail_url,
+            description: episode.description || '',
+            thumbnail_url: thumbnailUrl,
             video_url: episode.video_url,
             local_video_uri: result.uri,
             local_thumbnail_uri: localThumbnailUri,
-            duration: episode.duration,
+            duration: episode.duration || 0,
             downloaded_at: Date.now(),
-            content_title: contentTitle
+            size: fileSize,
+            content_title: contentTitle,
         };
 
         await OfflineStorage.saveDownloadMetadata(downloadedEp);
         return downloadedEp;
     },
 
-    // Remove a download (files + metadata)
     removeDownload: async (episodeId: string) => {
         const downloads = await OfflineStorage.getDownloads();
         const target = downloads.find(d => d.id === episodeId);
-
         if (target) {
-            // Delete Video File
-            if (target.local_video_uri) {
-                await FileSystem.deleteAsync(target.local_video_uri, { idempotent: true });
-            }
-            // Delete Thumbnail File
-            if (target.local_thumbnail_uri) {
-                await FileSystem.deleteAsync(target.local_thumbnail_uri, { idempotent: true });
-            }
-
-            // Remove Metadata
+            if (target.local_video_uri) await FileSystem.deleteAsync(target.local_video_uri, { idempotent: true });
+            if (target.local_thumbnail_uri) await FileSystem.deleteAsync(target.local_thumbnail_uri, { idempotent: true });
             await OfflineStorage.removeDownloadMetadata(episodeId);
         }
-    }
+    },
 };

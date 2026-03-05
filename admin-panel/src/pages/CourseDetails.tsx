@@ -1,9 +1,10 @@
+// admin-panel/src/pages/CourseDetails.tsx
 import { useEffect, useState } from "react";
 import * as tus from "tus-js-client";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, ChevronLeft, FileVideo, GripVertical, Pencil } from "lucide-react";
+import { Plus, Trash2, ChevronLeft, FileVideo, GripVertical, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
 import {
     Card,
     CardContent,
@@ -35,7 +36,7 @@ interface Episode {
     thumbnail_url: string;
     module_id: string;
     order: number;
-    duration: number; // in seconds, optional
+    duration: number;
 }
 
 export default function CourseDetails() {
@@ -62,7 +63,8 @@ export default function CourseDetails() {
     const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number>(0);
     const [uploadStage, setUploadStage] = useState<string>("");
-
+    const [uploadError, setUploadError] = useState<string>("");
+    const [uploadSuccess, setUploadSuccess] = useState(false);
 
     useEffect(() => {
         if (id) fetchCourseDetails();
@@ -70,17 +72,12 @@ export default function CourseDetails() {
 
     const fetchCourseDetails = async () => {
         setLoading(true);
-        // Fetch Course Info
         const { data: course } = await supabase.from("contents").select("title").eq("id", id).single();
         if (course) setCourseTitle(course.title);
 
-        // Fetch Modules
         const { data: mods } = await supabase.from("modules").select("*").eq("content_id", id).order("order");
         setModules(mods || []);
 
-        // Fetch Episodes (for this content) -- wait, episodes are linked to contents directly in current schema? 
-        // No, current schema has `content_id`. The new schema adds `module_id`.
-        // We should fetch all episodes for this content, then group by module in UI.
         const { data: eps } = await supabase.from("episodes").select("*").eq("content_id", id).order("order");
         setEpisodes(eps || []);
 
@@ -145,6 +142,8 @@ export default function CourseDetails() {
         setThumbnailFile(null);
         setUploadProgress(0);
         setUploadStage("");
+        setUploadError("");
+        setUploadSuccess(false);
         setEpisodeDialogOpen(true);
     };
 
@@ -157,80 +156,111 @@ export default function CourseDetails() {
         setThumbnailFile(null);
         setUploadProgress(0);
         setUploadStage("");
+        setUploadError("");
+        setUploadSuccess(false);
         setEpisodeDialogOpen(true);
     };
 
     const handleSaveEpisode = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!id || !currentModuleId) return;
+
         setLoading(true);
+        setUploadError("");
+        setUploadSuccess(false);
 
         let videoUrl = editingEpisode?.video_url || "";
         let thumbUrl = editingEpisode?.thumbnail_url || "";
 
-        // Upload Video to Cloudflare Stream
+        // ── Upload de Vídeo via Cloudflare Stream (TUS) ──────────────────────
         if (videoFile) {
-            setUploadStage("Enviando vídeo para o Cloudflare...");
+            setUploadStage("Solicitando URL de upload segura...");
+            setUploadProgress(0);
+
             try {
-                // Call Supabase Edge Function to get the TUS upload URL
+                // Chama a Edge Function via supabase.functions.invoke
+                // Isso inclui automaticamente o header Authorization da sessão atual
                 const { data: edgeData, error: edgeError } = await supabase.functions.invoke('cloudflare-upload', {
                     body: {
                         uploadLength: videoFile.size,
-                        uploadMetadata: `name ${btoa(videoFile.name)}`
-                    }
+                        uploadMetadata: `name ${btoa(encodeURIComponent(videoFile.name))}`,
+                    },
                 });
 
-                if (edgeError || !edgeData?.uploadUrl) {
-                    throw new Error(edgeError?.message || "Não foi possível obter a URL de upload segura.");
+                if (edgeError) {
+                    throw new Error(`Edge Function error: ${edgeError.message}`);
                 }
 
-                videoUrl = await new Promise((resolve, reject) => {
+                if (!edgeData?.uploadUrl) {
+                    throw new Error(edgeData?.error || "Edge Function não retornou uploadUrl. Verifique os logs da função.");
+                }
+
+                const { uploadUrl, mediaId } = edgeData;
+
+                if (!mediaId) {
+                    throw new Error("Cloudflare não retornou o Media ID. Verifique as credenciais.");
+                }
+
+                setUploadStage("Enviando vídeo para o Cloudflare...");
+
+                // Upload via TUS direto para o Cloudflare (sem passar pelo Supabase)
+                await new Promise<void>((resolve, reject) => {
                     const upload = new tus.Upload(videoFile, {
-                        endpoint: "https://unused", // Required by TUS but ignored when using uploadUrl
-                        uploadUrl: edgeData.uploadUrl,
-                        chunkSize: 50 * 1024 * 1024, // 50MB
+                        uploadUrl: uploadUrl,          // URL já definida — não usa endpoint
+                        endpoint: "https://api.cloudflare.com/client/v4/accounts/x/stream", // ignorado quando uploadUrl está definido
+                        chunkSize: 50 * 1024 * 1024,   // chunks de 50MB
                         retryDelays: [0, 3000, 5000, 10000, 20000],
-                        onError: function (error) {
-                            reject(error);
+                        onError: (error) => {
+                            console.error("TUS Upload error:", error);
+                            reject(new Error("Falha no upload TUS: " + error.message));
                         },
-                        onProgress: function (bytesUploaded, bytesTotal) {
-                            const percentage = (bytesUploaded / bytesTotal) * 100;
-                            setUploadProgress(percentage);
+                        onProgress: (bytesUploaded, bytesTotal) => {
+                            const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+                            setUploadProgress(pct);
                         },
-                        onSuccess: function () {
-                            if (edgeData.mediaId) {
-                                resolve(edgeData.mediaId || "");
-                            } else {
-                                reject(new Error("O Cloudflare não retornou o Media ID do vídeo"));
-                            }
+                        onSuccess: () => {
+                            resolve();
                         },
                     });
 
                     upload.start();
                 });
+
+                // O video_url no banco armazena apenas o UID (mediaId)
+                videoUrl = mediaId;
+                setUploadStage("Vídeo enviado com sucesso!");
+                setUploadProgress(100);
+
             } catch (err: any) {
-                alert("Erro ao enviar vídeo para Cloudflare: " + err.message);
-                setLoading(false);
+                const msg = err.message || "Erro desconhecido no upload";
+                console.error("Upload error:", msg);
+                setUploadError(msg);
                 setUploadStage("");
+                setLoading(false);
                 return;
             }
         }
 
-        // Upload Thumbnail
+        // ── Upload de Thumbnail no Supabase Storage ───────────────────────────
         if (thumbnailFile) {
-            setUploadStage("Enviando capa do vídeo...");
+            setUploadStage("Enviando thumbnail...");
             const fileName = `thumb-${Date.now()}-${thumbnailFile.name}`;
             const { error: uploadError } = await supabase.storage
                 .from("images")
                 .upload(fileName, thumbnailFile);
 
             if (uploadError) {
-                alert("Error uploading thumbnail: " + uploadError.message);
-            } else {
-                const { data } = supabase.storage.from("images").getPublicUrl(fileName);
-                thumbUrl = data.publicUrl;
+                setUploadError("Erro no upload da thumbnail: " + uploadError.message);
+                setLoading(false);
+                return;
             }
+
+            const { data } = supabase.storage.from("images").getPublicUrl(fileName);
+            thumbUrl = data.publicUrl;
         }
+
+        // ── Salvar Episode no banco ───────────────────────────────────────────
+        setUploadStage("Salvando episódio...");
 
         const payload = {
             content_id: id,
@@ -239,8 +269,7 @@ export default function CourseDetails() {
             description: episodeDesc,
             video_url: videoUrl,
             thumbnail_url: thumbUrl,
-            // Only set order on create to avoid resetting it on edit, logic could be improved but simple for now
-            ...(editingEpisode ? {} : { order: episodes.filter(e => e.module_id === currentModuleId).length + 1 })
+            ...(editingEpisode ? {} : { order: episodes.filter(e => e.module_id === currentModuleId).length + 1 }),
         };
 
         let result;
@@ -251,25 +280,35 @@ export default function CourseDetails() {
         }
 
         if (result.error) {
-            alert("Error saving episode: " + result.error.message);
+            setUploadError("Erro ao salvar episódio: " + result.error.message);
         } else {
-            setEpisodeDialogOpen(false);
-            setEpisodeTitle("");
-            setEpisodeDesc("");
-            setVideoFile(null);
-            setThumbnailFile(null);
-            setEditingEpisode(null);
-            fetchCourseDetails();
+            setUploadSuccess(true);
+            setUploadStage("Episódio salvo com sucesso!");
+            setTimeout(() => {
+                setEpisodeDialogOpen(false);
+                resetEpisodeForm();
+                fetchCourseDetails();
+            }, 1500);
         }
+
         setLoading(false);
-        setUploadStage("");
+    };
+
+    const resetEpisodeForm = () => {
+        setEpisodeTitle("");
+        setEpisodeDesc("");
+        setVideoFile(null);
+        setThumbnailFile(null);
+        setEditingEpisode(null);
         setUploadProgress(0);
+        setUploadStage("");
+        setUploadError("");
+        setUploadSuccess(false);
     };
 
     const handleDeleteEpisode = async (epId: string) => {
         if (!confirm("Delete this episode?")) return;
 
-        // Delete related data first to avoid foreign key constraint errors
         await supabase.from("likes").delete().eq("episode_id", epId);
         await supabase.from("comments").delete().eq("episode_id", epId);
         await supabase.from("user_episode_progress").delete().eq("episode_id", epId);
@@ -296,7 +335,6 @@ export default function CourseDetails() {
                     <Plus className="h-4 w-4" /> Add Module
                 </Button>
 
-                {/* Module Dialog */}
                 <Dialog open={moduleDialogOpen} onOpenChange={setModuleDialogOpen}>
                     <DialogContent>
                         <DialogHeader>
@@ -305,11 +343,7 @@ export default function CourseDetails() {
                         <form onSubmit={handleSaveModule} className="space-y-4">
                             <div className="space-y-2">
                                 <Label>Title</Label>
-                                <Input
-                                    value={moduleTitle}
-                                    onChange={e => setModuleTitle(e.target.value)}
-                                    required
-                                />
+                                <Input value={moduleTitle} onChange={e => setModuleTitle(e.target.value)} required />
                             </div>
                             <DialogFooter>
                                 <Button type="submit">Save Module</Button>
@@ -337,12 +371,7 @@ export default function CourseDetails() {
                                 </Button>
                             </div>
                             <div className="flex items-center gap-2">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 text-red-500"
-                                    onClick={() => handleDeleteModule(module.id)}
-                                >
+                                <Button variant="ghost" size="sm" className="h-8 text-red-500" onClick={() => handleDeleteModule(module.id)}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
                                 <Button size="sm" className="gap-2" onClick={() => openCreateEpisode(module.id)}>
@@ -362,7 +391,7 @@ export default function CourseDetails() {
                                             <div className="flex items-center gap-4">
                                                 <div className="h-12 w-20 bg-slate-200 rounded overflow-hidden flex-shrink-0">
                                                     {ep.thumbnail_url ? (
-                                                        <img src={ep.thumbnail_url} className="w-full h-full object-cover" />
+                                                        <img src={ep.thumbnail_url} className="w-full h-full object-cover" alt="" />
                                                     ) : (
                                                         <div className="w-full h-full flex items-center justify-center">
                                                             <FileVideo className="h-6 w-6 text-slate-400" />
@@ -372,23 +401,18 @@ export default function CourseDetails() {
                                                 <div>
                                                     <p className="font-medium text-sm">{ep.title}</p>
                                                     <p className="text-xs text-slate-500 line-clamp-1">{ep.description}</p>
+                                                    {ep.video_url && (
+                                                        <p className="text-xs text-green-600 font-mono mt-0.5">
+                                                            CF: {ep.video_url.slice(0, 12)}...
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8"
-                                                    onClick={() => openEditEpisode(ep)}
-                                                >
+                                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEditEpisode(ep)}>
                                                     <Pencil className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 text-red-500"
-                                                    onClick={() => handleDeleteEpisode(ep.id)}
-                                                >
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleDeleteEpisode(ep.id)}>
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -400,132 +424,104 @@ export default function CourseDetails() {
                     </Card>
                 ))}
             </div>
-            {/* Unassigned Episodes Section */}
-            {episodes.filter(e => !e.module_id).length > 0 && (
-                <Card className="overflow-hidden border-orange-200">
-                    <CardHeader className="bg-orange-50 border-b border-orange-100 py-3 flex-row items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <CardTitle className="text-lg text-orange-800">Unassigned Episodes</CardTitle>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            {/* Create Episode in 'null' module? Or maybe force user to create module first? 
-                                 For now, just listing them. Creating new episodes usually requires a module context in this UI.
-                                 Let's allow adding to 'no module' by passing null or empty string if supported by logic.
-                                 Actually openCreateEpisode expects a string ID. Let's just allow Management of existing ones.
-                             */}
-                        </div>
-                    </CardHeader>
-                    <CardContent className="p-0">
-                        <div className="divide-y divide-orange-100">
-                            {episodes.filter(e => !e.module_id).map(ep => (
-                                <div key={ep.id} className="p-4 flex items-center justify-between hover:bg-orange-50/50">
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-12 w-20 bg-slate-200 rounded overflow-hidden flex-shrink-0">
-                                            {ep.thumbnail_url ? (
-                                                <img src={ep.thumbnail_url} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center">
-                                                    <FileVideo className="h-6 w-6 text-slate-400" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <p className="font-medium text-sm">{ep.title}</p>
-                                            <p className="text-xs text-slate-500 line-clamp-1">{ep.description}</p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8"
-                                            onClick={() => openEditEpisode(ep)}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-8 w-8 text-red-500"
-                                            onClick={() => handleDeleteEpisode(ep.id)}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
 
-            {/* Reusable Episode Dialog */}
-            <Dialog open={episodeDialogOpen} onOpenChange={setEpisodeDialogOpen}>
-                <DialogContent>
+            {/* Episode Dialog */}
+            <Dialog open={episodeDialogOpen} onOpenChange={(open) => {
+                if (!loading) {
+                    setEpisodeDialogOpen(open);
+                    if (!open) resetEpisodeForm();
+                }
+            }}>
+                <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{editingEpisode ? "Edit Episode" : "Add Episode"}</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={handleSaveEpisode} className="space-y-4">
                         <div className="space-y-2">
                             <Label>Episode Title</Label>
-                            <Input
-                                value={episodeTitle}
-                                onChange={e => setEpisodeTitle(e.target.value)}
-                                required
-                            />
+                            <Input value={episodeTitle} onChange={e => setEpisodeTitle(e.target.value)} required />
                         </div>
                         <div className="space-y-2">
                             <Label>Description</Label>
-                            <Textarea
-                                value={episodeDesc}
-                                onChange={e => setEpisodeDesc(e.target.value)}
-                            />
+                            <Textarea value={episodeDesc} onChange={e => setEpisodeDesc(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label>Video File</Label>
-                            <div className="flex flex-col gap-2">
-                                <Input
-                                    type="file"
-                                    accept="video/*"
-                                    onChange={e => setVideoFile(e.target.files?.[0] || null)}
-                                    // Required only on create
-                                    required={!editingEpisode}
-                                />
-                                {editingEpisode?.video_url && !videoFile && (
-                                    <p className="text-xs text-green-600">Current video loaded. Upload new file to replace.</p>
-                                )}
-                            </div>
+                            <Input
+                                type="file"
+                                accept="video/*"
+                                onChange={e => setVideoFile(e.target.files?.[0] || null)}
+                                required={!editingEpisode}
+                                disabled={loading}
+                            />
+                            {editingEpisode?.video_url && !videoFile && (
+                                <p className="text-xs text-green-600 flex items-center gap-1">
+                                    <CheckCircle2 className="h-3 w-3" />
+                                    Vídeo atual: {editingEpisode.video_url.slice(0, 16)}... — selecione novo arquivo para substituir
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <Label>Thumbnail Image</Label>
-                            <div className="flex flex-col gap-2">
-                                <Input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={e => setThumbnailFile(e.target.files?.[0] || null)}
-                                />
-                                {editingEpisode?.thumbnail_url && !thumbnailFile && (
-                                    <p className="text-xs text-slate-500">Current: <a href={editingEpisode.thumbnail_url} target="_blank" className="underline">View Image</a></p>
-                                )}
-                            </div>
-                        </div>
-                        {loading && uploadStage && (
-                            <div className="space-y-2 mt-2">
-                                <p className="text-sm font-medium text-slate-700">{uploadStage}</p>
-                                {uploadProgress > 0 && uploadProgress < 100 && (
-                                    <div className="w-full bg-slate-200 rounded-full h-2.5">
-                                        <div
-                                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                                            style={{ width: `${uploadProgress}%` }}
-                                        ></div>
-                                    </div>
-                                )}
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={e => setThumbnailFile(e.target.files?.[0] || null)}
+                                disabled={loading}
+                            />
+                            {editingEpisode?.thumbnail_url && !thumbnailFile && (
                                 <p className="text-xs text-slate-500">
-                                    {uploadProgress > 0 ? `${uploadProgress.toFixed(1)}%` : "Preparando..."}
+                                    Atual: <a href={editingEpisode.thumbnail_url} target="_blank" rel="noreferrer" className="underline">Ver Imagem</a>
                                 </p>
+                            )}
+                        </div>
+
+                        {/* Upload Progress */}
+                        {loading && uploadStage && !uploadError && (
+                            <div className="space-y-2 p-3 bg-slate-50 rounded-lg border">
+                                <p className="text-sm font-medium text-slate-700">{uploadStage}</p>
+                                {uploadProgress > 0 && (
+                                    <>
+                                        <div className="w-full bg-slate-200 rounded-full h-2.5">
+                                            <div
+                                                className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                                style={{ width: `${uploadProgress}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-slate-500 text-right">{uploadProgress}%</p>
+                                    </>
+                                )}
                             </div>
                         )}
+
+                        {/* Success */}
+                        {uploadSuccess && (
+                            <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200 text-green-700">
+                                <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                <p className="text-sm font-medium">{uploadStage}</p>
+                            </div>
+                        )}
+
+                        {/* Error */}
+                        {uploadError && (
+                            <div className="flex items-start gap-2 p-3 bg-red-50 rounded-lg border border-red-200 text-red-700">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="text-sm font-medium">Erro no upload</p>
+                                    <p className="text-xs mt-1 text-red-600">{uploadError}</p>
+                                </div>
+                            </div>
+                        )}
+
                         <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => { setEpisodeDialogOpen(false); resetEpisodeForm(); }}
+                                disabled={loading}
+                            >
+                                Cancelar
+                            </Button>
                             <Button type="submit" disabled={loading}>
                                 {loading ? "Salvando..." : "Save Episode"}
                             </Button>
