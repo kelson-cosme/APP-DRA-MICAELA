@@ -1,6 +1,6 @@
 import "../../global.css";
 import React, { useState } from 'react';
-import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../lib/supabase';
@@ -36,7 +36,7 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
     return (
         <View className="flex-1 bg-black">
             <ImageBackground
-                source={require('../../assets/background.png')}
+                source={require('../../assets/draMicaela.webp')}
                 className="flex-1 justify-end"
                 resizeMode="cover"
                 style={{ width: width, height: height }}
@@ -51,11 +51,12 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                     <SafeAreaView className="w-full flex-1 justify-end px-6 pb-12 z-10">
                         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}>
 
-                            {/* Logo / Title */}
                             <View className="mb-10 items-center">
-                                <Text className="text-[#C5A668] text-5xl font-light text-center" style={{ fontFamily: 'serif', fontStyle: 'italic' }}>
-                                    Dra. Micaela Vargas
-                                </Text>
+                                <Image
+                                    source={require('../../assets/assinatura.png')}
+                                    style={{ width: '100%', height: 80 }}
+                                    resizeMode="contain"
+                                />
                             </View>
 
                             {/* Form */}
