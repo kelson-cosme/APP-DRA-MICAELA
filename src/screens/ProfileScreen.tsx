@@ -28,7 +28,6 @@ export default function ProfileScreen() {
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
-        navigation.replace('Login');
     };
 
     const pickImage = async () => {

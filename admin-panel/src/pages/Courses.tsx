@@ -148,10 +148,11 @@ export default function Courses() {
         const { data: episodes } = await supabase.from("episodes").select("id").eq("content_id", id);
         const episodeIds = episodes?.map(e => e.id) || [];
 
-        // 2. Delete Likes and Comments for these episodes
+        // 2. Delete Likes, Comments, and Progress for these episodes
         if (episodeIds.length > 0) {
             await supabase.from("likes").delete().in("episode_id", episodeIds);
             await supabase.from("comments").delete().in("episode_id", episodeIds);
+            await supabase.from("user_episode_progress").delete().in("episode_id", episodeIds);
         }
 
         // 3. Delete Episodes linked to this content

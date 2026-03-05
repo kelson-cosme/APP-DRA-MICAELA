@@ -112,7 +112,7 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                             {/* Footer */}
                             <View className="flex-row items-center mt-10 gap-1 mb-4 justify-center">
                                 <Text className="text-gray-300 text-base shadow-black/50 shadow-sm">Não tem acesso?</Text>
-                                <TouchableOpacity>
+                                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
                                     <Text className="text-[#D4AF37] text-base font-bold shadow-black/50 shadow-sm">Cadastre agora mesmo</Text>
                                 </TouchableOpacity>
                             </View>

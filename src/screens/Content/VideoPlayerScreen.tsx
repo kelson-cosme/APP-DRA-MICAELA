@@ -3,6 +3,7 @@ import { View, Text, ScrollView, TextInput, TouchableOpacity, ActivityIndicator,
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { ResizeMode, Video, Audio } from 'expo-av';
 import { supabase } from '../../lib/supabase';
+import { fetchCloudflareVideoDetails } from '../../lib/cloudflare';
 import { ChevronLeft, Send, Heart, MessageSquare, Maximize2, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -12,6 +13,7 @@ export default function VideoPlayerScreen() {
     const { episodeId } = route.params;
 
     const [episode, setEpisode] = useState<any>(null);
+    const [cloudflareVideoUrl, setCloudflareVideoUrl] = useState<string | null>(null);
     const [comments, setComments] = useState<any[]>([]);
     const [profilesMap, setProfilesMap] = useState<Record<string, any>>({});
     const [newComment, setNewComment] = useState('');
@@ -59,6 +61,16 @@ export default function VideoPlayerScreen() {
             if (epError) throw epError;
             console.log('Episode Data:', epData);
             setEpisode(epData);
+
+            // Forcing Cloudflare Stream: The video_url is the UID.
+            if (epData && epData.video_url) {
+                const cfData = await fetchCloudflareVideoDetails(epData.video_url);
+                if (cfData && cfData.playback && cfData.playback.hls) {
+                    setCloudflareVideoUrl(cfData.playback.hls);
+                } else {
+                    console.warn('Could not retrieve Cloudflare HLS Playback URL');
+                }
+            }
 
             // Fetch Likes count
             const { count: lCount, error: lError } = await supabase
@@ -260,20 +272,38 @@ export default function VideoPlayerScreen() {
 
             {/* Video Player */}
             <View className="w-full aspect-video bg-black mt-0 relative">
+                {(() => {
+                    if (!episode?.video_url) {
+                        return (
+                            <View className="flex-1 justify-center items-center">
+                                <ActivityIndicator color="#D4AF37" />
+                            </View>
+                        );
+                    }
 
+                    if (!cloudflareVideoUrl) {
+                        return (
+                            <View className="flex-1 justify-center items-center">
+                                <ActivityIndicator color="#D4AF37" />
+                                <Text className="text-gray-400 mt-2">Carregando player...</Text>
+                            </View>
+                        );
+                    }
 
-                {/* Added margin top or handle SafeArea properly if needed, but video usually at top */}
-                <Video
-                    ref={videoRef}
-                    style={{ width: '100%', height: '100%' }}
-                    source={{
-                        uri: episode?.video_url || 'https://d23dyxeqlo5psv.cloudfront.net/big_buck_bunny.mp4',
-                    }}
-                    useNativeControls
-                    resizeMode={ResizeMode.CONTAIN}
-                    isLooping={false}
-                    shouldPlay
-                />
+                    return (
+                        <Video
+                            ref={videoRef}
+                            style={{ flex: 1 }}
+                            source={{
+                                uri: cloudflareVideoUrl,
+                            }}
+                            useNativeControls
+                            resizeMode={ResizeMode.CONTAIN}
+                            isLooping={false}
+                            shouldPlay
+                        />
+                    );
+                })()}
             </View>
 
             <View className="flex-1 flex-col">

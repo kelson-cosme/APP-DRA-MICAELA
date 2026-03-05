@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchCloudflareVideoDetails } from './cloudflare';
 
 export interface DownloadedEpisode {
     id: string;
@@ -68,6 +69,16 @@ export const OfflineStorage = {
     ): Promise<DownloadedEpisode> => {
         await ensureDirExists();
 
+        // Check for MP4 download availability via Cloudflare API
+        // episode.video_url is assumed to be the Cloudflare UID
+        const cfData = await fetchCloudflareVideoDetails(episode.video_url);
+
+        if (!cfData || !cfData.mp4DownloadUrl) {
+            throw new Error("Este vídeo não possui a opção de download habilitada no Cloudflare.");
+        }
+
+        const videoDownloadUrl = cfData.mp4DownloadUrl;
+
         // 1. Download Thumbnail
         let localThumbnailUri = '';
         if (episode.thumbnail_url) {
@@ -87,7 +98,7 @@ export const OfflineStorage = {
         const videoDest = DOWNLOAD_DIR + videoFilename;
 
         const downloadResumable = FileSystem.createDownloadResumable(
-            episode.video_url,
+            videoDownloadUrl, // Use the extracted MP4 URL from Cloudflare API
             videoDest,
             {},
             (downloadProgress) => {

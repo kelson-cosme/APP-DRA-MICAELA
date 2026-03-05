@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import * as tus from "tus-js-client";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,8 @@ export default function CourseDetails() {
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
     const [editingEpisode, setEditingEpisode] = useState<Episode | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<number>(0);
+    const [uploadStage, setUploadStage] = useState<string>("");
 
 
     useEffect(() => {
@@ -140,6 +143,8 @@ export default function CourseDetails() {
         setEpisodeDesc("");
         setVideoFile(null);
         setThumbnailFile(null);
+        setUploadProgress(0);
+        setUploadStage("");
         setEpisodeDialogOpen(true);
     };
 
@@ -150,6 +155,8 @@ export default function CourseDetails() {
         setEpisodeDesc(episode.description || "");
         setVideoFile(null);
         setThumbnailFile(null);
+        setUploadProgress(0);
+        setUploadStage("");
         setEpisodeDialogOpen(true);
     };
 
@@ -161,26 +168,57 @@ export default function CourseDetails() {
         let videoUrl = editingEpisode?.video_url || "";
         let thumbUrl = editingEpisode?.thumbnail_url || "";
 
-        // Upload Video
+        // Upload Video to Cloudflare Stream
         if (videoFile) {
-            const fileExt = videoFile.name.split('.').pop();
-            const fileName = `video-${Date.now()}.${fileExt}`;
-            const { error: uploadError } = await supabase.storage
-                .from("videos")
-                .upload(fileName, videoFile);
+            setUploadStage("Enviando vídeo para o Cloudflare...");
+            try {
+                // Call Supabase Edge Function to get the TUS upload URL
+                const { data: edgeData, error: edgeError } = await supabase.functions.invoke('cloudflare-upload', {
+                    body: {
+                        uploadLength: videoFile.size,
+                        uploadMetadata: `name ${btoa(videoFile.name)}`
+                    }
+                });
 
-            if (uploadError) {
-                alert("Error uploading video: " + uploadError.message);
+                if (edgeError || !edgeData?.uploadUrl) {
+                    throw new Error(edgeError?.message || "Não foi possível obter a URL de upload segura.");
+                }
+
+                videoUrl = await new Promise((resolve, reject) => {
+                    const upload = new tus.Upload(videoFile, {
+                        endpoint: "https://unused", // Required by TUS but ignored when using uploadUrl
+                        uploadUrl: edgeData.uploadUrl,
+                        chunkSize: 50 * 1024 * 1024, // 50MB
+                        retryDelays: [0, 3000, 5000, 10000, 20000],
+                        onError: function (error) {
+                            reject(error);
+                        },
+                        onProgress: function (bytesUploaded, bytesTotal) {
+                            const percentage = (bytesUploaded / bytesTotal) * 100;
+                            setUploadProgress(percentage);
+                        },
+                        onSuccess: function () {
+                            if (edgeData.mediaId) {
+                                resolve(edgeData.mediaId || "");
+                            } else {
+                                reject(new Error("O Cloudflare não retornou o Media ID do vídeo"));
+                            }
+                        },
+                    });
+
+                    upload.start();
+                });
+            } catch (err: any) {
+                alert("Erro ao enviar vídeo para Cloudflare: " + err.message);
                 setLoading(false);
+                setUploadStage("");
                 return;
             }
-
-            const { data } = supabase.storage.from("videos").getPublicUrl(fileName);
-            videoUrl = data.publicUrl;
         }
 
         // Upload Thumbnail
         if (thumbnailFile) {
+            setUploadStage("Enviando capa do vídeo...");
             const fileName = `thumb-${Date.now()}-${thumbnailFile.name}`;
             const { error: uploadError } = await supabase.storage
                 .from("images")
@@ -224,10 +262,18 @@ export default function CourseDetails() {
             fetchCourseDetails();
         }
         setLoading(false);
+        setUploadStage("");
+        setUploadProgress(0);
     };
 
     const handleDeleteEpisode = async (epId: string) => {
         if (!confirm("Delete this episode?")) return;
+
+        // Delete related data first to avoid foreign key constraint errors
+        await supabase.from("likes").delete().eq("episode_id", epId);
+        await supabase.from("comments").delete().eq("episode_id", epId);
+        await supabase.from("user_episode_progress").delete().eq("episode_id", epId);
+
         const { error } = await supabase.from("episodes").delete().eq("id", epId);
         if (error) {
             alert("Error deleting episode: " + error.message);
@@ -463,9 +509,25 @@ export default function CourseDetails() {
                                 )}
                             </div>
                         </div>
+                        {loading && uploadStage && (
+                            <div className="space-y-2 mt-2">
+                                <p className="text-sm font-medium text-slate-700">{uploadStage}</p>
+                                {uploadProgress > 0 && uploadProgress < 100 && (
+                                    <div className="w-full bg-slate-200 rounded-full h-2.5">
+                                        <div
+                                            className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                            style={{ width: `${uploadProgress}%` }}
+                                        ></div>
+                                    </div>
+                                )}
+                                <p className="text-xs text-slate-500">
+                                    {uploadProgress > 0 ? `${uploadProgress.toFixed(1)}%` : "Preparando..."}
+                                </p>
+                            </div>
+                        )}
                         <DialogFooter>
                             <Button type="submit" disabled={loading}>
-                                {loading ? "Uploading..." : "Save Episode"}
+                                {loading ? "Salvando..." : "Save Episode"}
                             </Button>
                         </DialogFooter>
                     </form>

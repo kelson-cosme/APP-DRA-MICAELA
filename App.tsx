@@ -5,6 +5,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
 import { supabase } from './src/lib/supabase';
 import LoginScreen from './src/screens/LoginScreen';
+import RegisterScreen from './src/screens/RegisterScreen';
 import TabNavigator from './src/navigation/TabNavigator';
 import ProfileScreen from './src/screens/ProfileScreen';
 import VideoPlayerScreen from './src/screens/Content/VideoPlayerScreen';
@@ -44,7 +45,10 @@ export default function App() {
             {!authReady ? (
               <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
             ) : !session ? (
-              <Stack.Screen name="Login" component={LoginScreen} />
+              <>
+                <Stack.Screen name="Login" component={LoginScreen} />
+                <Stack.Screen name="Register" component={RegisterScreen} />
+              </>
             ) : (
               <>
                 <Stack.Screen name="HomeTabs" component={TabNavigator} />
