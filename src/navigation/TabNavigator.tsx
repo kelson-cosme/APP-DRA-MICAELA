@@ -6,6 +6,7 @@ import ContentStackNavigator from './ContentStackNavigator';
 import CommunityStackNavigator from './CommunityStackNavigator';
 import EventsScreen from '../screens/Events/EventsScreen';
 import EventsStackNavigator from './EventsStackNavigator';
+import IAChatScreen from '../screens/IAChatScreen';
 import { View, Text } from 'react-native';
 
 const Tab = createBottomTabNavigator();
@@ -58,7 +59,7 @@ export default function TabNavigator() {
             />
             <Tab.Screen
                 name="IA Mica"
-                component={() => <PlaceholderScreen name="IA" />}
+                component={IAChatScreen}
                 options={{
                     tabBarIcon: ({ color }) => <MessageCircle color={color} size={24} />,
                 }}
