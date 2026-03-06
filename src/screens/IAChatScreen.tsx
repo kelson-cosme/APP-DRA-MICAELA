@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView, Platform, ActivityIndicator, Keyboard, Image, ScrollView, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -49,15 +49,24 @@ export default function IAChatScreen() {
         }
     }, [messages]);
 
-    const sendMessage = async () => {
-        if (!inputText.trim() || isLoading) return;
+    const QUICK_REPLIES = [
+        "Mica, posso desabafar um pouco com você?",
+        "Oi, Mica, estou passando por alguns sintomas e queria conversar com você.",
+        "Preciso te contar como tenho me sentido esses dias…"
+    ];
 
-        const userMessage: Message = { role: 'user', content: inputText.trim() };
+    const sendMessage = async (textToSend?: string) => {
+        const text = typeof textToSend === 'string' ? textToSend : inputText;
+        if (!text.trim() || isLoading) return;
+
+        const userMessage: Message = { role: 'user', content: text.trim() };
 
         // Adiciona a mensagem do usuário na tela e limpa o input
         const newMessages = [...messages, userMessage];
         setMessages(newMessages);
-        setInputText('');
+        if (typeof textToSend !== 'string' || textToSend === inputText) {
+            setInputText('');
+        }
         setIsLoading(true);
 
         try {
@@ -85,12 +94,49 @@ export default function IAChatScreen() {
         }
     };
 
+    const renderTextWithLinks = (text: string) => {
+        // Expressão regular para encontrar URLs
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        const parts = text.split(urlRegex);
+
+        return parts.map((part, index) => {
+            if (part.match(urlRegex)) {
+                // Se for um link de whatsapp da Dra. Micaela, mostramos o botão
+                if (part.includes('wa.me')) {
+                    return (
+                        <TouchableOpacity
+                            key={index}
+                            onPress={() => Linking.openURL(part)}
+                            className="bg-[#25D366] flex-row items-center px-4 py-3 rounded-full shadow-sm mt-3 mb-1 active:opacity-80"
+                        >
+                            <Text className="text-white font-bold text-base text-center w-full">
+                                Falar no WhatsApp
+                            </Text>
+                        </TouchableOpacity>
+                    );
+                }
+
+                // Outro tipo de link
+                return (
+                    <Text
+                        key={index}
+                        className="text-[#60A5FA] underline text-base font-medium"
+                        onPress={() => Linking.openURL(part)}
+                    >
+                        {part}
+                    </Text>
+                );
+            }
+            return <Text key={index} className="text-white text-base">{part}</Text>;
+        });
+    };
+
     const renderMessage = ({ item }: { item: Message }) => {
         const isUser = item.role === 'user';
         return (
             <View className={`mb-4 flex-row ${isUser ? 'justify-end' : 'justify-start'}`}>
                 {!isUser && (
-                    <View className="w-8 h-8 rounded-full bg-[#8B4513] items-center justify-center mr-2 overflow-hidden">
+                    <View className="w-8 h-8 rounded-full bg-[#8B4513] items-center justify-center mr-2 overflow-hidden mt-1">
                         <Image source={require('../../assets/mica.png')} className="w-full h-full" resizeMode="cover" />
                     </View>
                 )}
@@ -100,9 +146,9 @@ export default function IAChatScreen() {
                         : 'bg-[#333333] rounded-tl-none'
                         }`}
                 >
-                    <Text className="text-white text-base">
-                        {item.content}
-                    </Text>
+                    <View className="flex-col">
+                        {renderTextWithLinks(item.content)}
+                    </View>
                 </View>
             </View>
         );
@@ -138,6 +184,23 @@ export default function IAChatScreen() {
 
                 {/* Input Area */}
                 <View className={`p-4 border-t border-[#333333] bg-[#222222] min-h-24 ${keyboardVisible ? 'pb-4' : 'pb-[90px]'}`}>
+                    {/* Quick Replies (Chips) */}
+                    {messages.length === 1 && (
+                        <View className="mb-4">
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                                {QUICK_REPLIES.map((reply, index) => (
+                                    <TouchableOpacity
+                                        key={index}
+                                        onPress={() => sendMessage(reply)}
+                                        className="bg-[#333333] rounded-full px-4 py-2 mr-2 border border-[#444444]"
+                                    >
+                                        <Text className="text-white text-sm">{reply}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
                     <View className="flex-row items-end bg-[#1a1a1a] rounded-3xl border border-[#333333] pl-4 pr-2 py-2">
                         <TextInput
                             className="flex-1 text-white text-base pt-2 max-h-32 min-h-10"
@@ -148,7 +211,7 @@ export default function IAChatScreen() {
                             onChangeText={setInputText}
                         />
                         <TouchableOpacity
-                            onPress={sendMessage}
+                            onPress={() => sendMessage()}
                             disabled={isLoading || !inputText.trim()}
                             className={`w-10 h-10 rounded-full items-center justify-center mb-1 ml-2 ${inputText.trim() && !isLoading ? 'bg-[#8B4513]' : 'bg-[#444444]'
                                 }`}

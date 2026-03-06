@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "dra-micaela-vargas",
-    "slug": "dra-micaela-vargas",
+    "name": "Dra Micaela Vargas",
+    "slug": "Dra Micaela Vargas",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logoApp.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/logoApp.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#312A27"
     },
     "ios": {
       "supportsTablet": true,
@@ -21,15 +21,15 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/logoApp.png",
+        "backgroundColor": "#312A27"
       },
       "package": "com.dramicaelavargas.app",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/logoApp.png"
     },
     "extra": {
       "eas": {
