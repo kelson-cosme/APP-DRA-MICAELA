@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { ChevronLeft, Camera, LogOut, Download } from 'lucide-react-native';
+import { ChevronLeft, Camera, LogOut, Download, Image as ImageIcon, X } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
 import * as ImagePicker from 'expo-image-picker';
@@ -17,6 +17,7 @@ export default function ProfileScreen() {
     const [loading, setLoading] = useState(false);
     const [fullName, setFullName] = useState(profile?.full_name || '');
     const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url || null);
+    const [showImageModal, setShowImageModal] = useState(false);
     const email = profile?.email || '';
 
     useEffect(() => {
@@ -30,38 +31,30 @@ export default function ProfileScreen() {
         await supabase.auth.signOut();
     };
 
-    const pickImage = async () => {
-        Alert.alert(
-            "Alterar Foto",
-            "Escolha a origem da imagem",
-            [
-                {
-                    text: "Câmera",
-                    onPress: async () => {
-                        const result = await ImagePicker.launchCameraAsync({
-                            mediaTypes: ['images'],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                        });
-                        if (!result.canceled) await uploadAvatar(result.assets[0].uri);
-                    }
-                },
-                {
-                    text: "Galeria",
-                    onPress: async () => {
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ['images'],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                        });
-                        if (!result.canceled) await uploadAvatar(result.assets[0].uri);
-                    }
-                },
-                { text: "Cancelar", style: "cancel" }
-            ]
-        );
+    const pickImage = () => {
+        setShowImageModal(true);
+    };
+
+    const handleCamera = async () => {
+        setShowImageModal(false);
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled) await uploadAvatar(result.assets[0].uri);
+    };
+
+    const handleGallery = async () => {
+        setShowImageModal(false);
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            allowsEditing: true,
+            aspect: [1, 1],
+            quality: 0.8,
+        });
+        if (!result.canceled) await uploadAvatar(result.assets[0].uri);
     };
 
     const uploadAvatar = async (uri: string) => {
@@ -227,6 +220,52 @@ export default function ProfileScreen() {
 
                 </ScrollView>
             </SafeAreaView>
+
+            {/* Modal de Seleção de Imagem */}
+            <Modal
+                visible={showImageModal}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setShowImageModal(false)}
+            >
+                <TouchableOpacity
+                    className="flex-1 bg-black/60 justify-end"
+                    activeOpacity={1}
+                    onPress={() => setShowImageModal(false)}
+                >
+                    <View className="bg-[#2B2B2B] rounded-t-3xl pt-6 pb-10 px-6 border-t border-[#D4AF37]/20">
+                        <View className="flex-row justify-between items-center mb-6">
+                            <Text className="text-white text-xl font-bold">Alterar Foto de Perfil</Text>
+                            <TouchableOpacity onPress={() => setShowImageModal(false)} className="p-2 bg-[#333333] rounded-full">
+                                <X color="#A0A0A0" size={20} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View className="flex-row justify-around gap-4 mt-2">
+                            <TouchableOpacity
+                                className="flex-1 bg-[#3E3B36] p-6 rounded-2xl items-center border border-[#524E48] active:bg-[#4E4B46]"
+                                onPress={handleCamera}
+                            >
+                                <View className="w-14 h-14 bg-[#D4AF37]/20 rounded-full items-center justify-center mb-3">
+                                    <Camera color="#D4AF37" size={28} />
+                                </View>
+                                <Text className="text-white font-bold">Câmera</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                className="flex-1 bg-[#3E3B36] p-6 rounded-2xl items-center border border-[#524E48] active:bg-[#4E4B46]"
+                                onPress={handleGallery}
+                            >
+                                <View className="w-14 h-14 bg-[#D4AF37]/20 rounded-full items-center justify-center mb-3">
+                                    <ImageIcon color="#D4AF37" size={28} />
+                                </View>
+                                <Text className="text-white font-bold">Galeria</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
             <StatusBar style="light" />
         </View>
     );

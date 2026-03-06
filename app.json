@@ -36,6 +36,10 @@
         "projectId": "9f242d56-7837-4d43-963f-bf0cca9366c5"
       }
     },
+    "notification": {
+      "icon": "./assets/logoApp.png",
+      "color": "#D4AF37"
+    },
     "plugins": [
       "expo-video"
     ]

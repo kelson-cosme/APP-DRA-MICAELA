@@ -23,6 +23,7 @@ export default function TabNavigator() {
         <Tab.Navigator
             screenOptions={{
                 headerShown: false,
+                tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     backgroundColor: '#FFFFFF',
                     height: 70,

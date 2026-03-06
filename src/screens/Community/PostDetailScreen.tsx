@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Keyboard } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
 import { Heart, MessageSquare, Send, ChevronLeft, Trash2 } from 'lucide-react-native';
@@ -20,6 +20,23 @@ export default function PostDetailScreen() {
     const [likesCount, setLikesCount] = useState(0);
     const [hasLiked, setHasLiked] = useState(false);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+    useEffect(() => {
+        const keyboardWillShow = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+            () => setKeyboardVisible(true)
+        );
+        const keyboardWillHide = Keyboard.addListener(
+            Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+            () => setKeyboardVisible(false)
+        );
+
+        return () => {
+            keyboardWillShow.remove();
+            keyboardWillHide.remove();
+        };
+    }, []);
 
     useEffect(() => {
         fetchPostDetails();
@@ -171,7 +188,11 @@ export default function PostDetailScreen() {
     }
 
     return (
-        <View className="flex-1 bg-[#141414]">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1, backgroundColor: '#141414' }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
             <SafeAreaView className="flex-1">
                 <View className="flex-row items-center px-4 py-2 border-b border-gray-800">
                     <TouchableOpacity onPress={() => navigation.goBack()} className="mr-4">
@@ -180,120 +201,114 @@ export default function PostDetailScreen() {
                     <Text className="text-white font-bold text-lg">Publicação</Text>
                 </View>
 
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    className="flex-1"
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
-                >
-                    <ScrollView className="flex-1">
-                        {/* Post Content */}
-                        <View className="bg-[#2B2B2B] mb-4">
-                            <View className="p-4 flex-row items-center gap-3">
-                                {profilesMap[post?.user_id]?.avatar_url ? (
-                                    <Image
-                                        source={{ uri: profilesMap[post?.user_id].avatar_url }}
-                                        className="w-10 h-10 rounded-full bg-gray-600"
-                                    />
-                                ) : (
-                                    <View className="w-10 h-10 rounded-full bg-gray-500 items-center justify-center">
-                                        <Text className="text-white font-bold">{profilesMap[post?.user_id]?.full_name?.charAt(0) || '?'}</Text>
-                                    </View>
-                                )}
-                                <View>
-                                    <Text className="text-white font-bold text-base">{profilesMap[post?.user_id]?.full_name || 'Usuário da Comunidade'}</Text>
-                                    <Text className="text-gray-400 text-xs">{new Date(post?.created_at).toLocaleDateString()}</Text>
-                                </View>
-                            </View>
-
-                            <Text className="text-white px-4 mb-3 text-base">{post?.content_text}</Text>
-
-                            {post?.image_url && (
+                <ScrollView className="flex-1">
+                    {/* Post Content */}
+                    <View className="bg-[#2B2B2B] mb-4">
+                        <View className="p-4 flex-row items-center gap-3">
+                            {profilesMap[post?.user_id]?.avatar_url ? (
                                 <Image
-                                    source={{ uri: post.image_url }}
-                                    className="w-full h-80 bg-gray-800"
-                                    resizeMode="cover"
+                                    source={{ uri: profilesMap[post?.user_id].avatar_url }}
+                                    className="w-10 h-10 rounded-full bg-gray-600"
                                 />
-                            )}
-
-                            <View className="p-4 flex-row items-center gap-6 border-t border-gray-700 mt-2">
-                                <TouchableOpacity
-                                    className="flex-row items-center gap-2"
-                                    onPress={handleLike}
-                                >
-                                    <Animatable.View
-                                        key={hasLiked ? 'liked' : 'unliked'}
-                                        animation={hasLiked ? 'bounceIn' : undefined}
-                                        duration={500}
-                                        useNativeDriver
-                                    >
-                                        <Heart color={hasLiked ? "#E50914" : "white"} fill={hasLiked ? "#E50914" : "transparent"} size={24} />
-                                    </Animatable.View>
-                                    <Text className="text-gray-300 text-sm">{likesCount} Curtidas</Text>
-                                </TouchableOpacity>
-
-                                <View className="flex-row items-center gap-2">
-                                    <MessageSquare color="white" size={24} />
-                                    <Text className="text-gray-300 text-sm">{comments.length} Comentários</Text>
+                            ) : (
+                                <View className="w-10 h-10 rounded-full bg-gray-500 items-center justify-center">
+                                    <Text className="text-white font-bold">{profilesMap[post?.user_id]?.full_name?.charAt(0) || '?'}</Text>
                                 </View>
+                            )}
+                            <View>
+                                <Text className="text-white font-bold text-base">{profilesMap[post?.user_id]?.full_name || 'Usuário da Comunidade'}</Text>
+                                <Text className="text-gray-400 text-xs">{new Date(post?.created_at).toLocaleDateString()}</Text>
                             </View>
                         </View>
 
-                        {/* Comments List */}
-                        <View className="px-4 pb-20">
-                            <Text className="text-gray-400 mb-4 font-bold">Comentários</Text>
-                            {comments.map((comment) => (
-                                <View key={comment.id} className="bg-[#2B2B2B] p-3 rounded-lg mb-3">
-                                    <View className="flex-row justify-between items-start">
-                                        <View className="flex-row items-center gap-3 mb-1">
-                                            {profilesMap[comment.user_id]?.avatar_url ? (
-                                                <Image
-                                                    source={{ uri: profilesMap[comment.user_id].avatar_url }}
-                                                    className="w-8 h-8 rounded-full bg-gray-600"
-                                                />
-                                            ) : (
-                                                <View className="w-8 h-8 rounded-full bg-gray-500 items-center justify-center">
-                                                    <Text className="text-white font-bold text-xs">{profilesMap[comment.user_id]?.full_name?.charAt(0) || '?'}</Text>
-                                                </View>
-                                            )}
-                                            <View>
-                                                <Text className="text-[#D4AF37] font-bold text-xs">{profilesMap[comment.user_id]?.full_name || 'Usuário'}</Text>
-                                                <Text className="text-gray-500 text-[10px]">{new Date(comment.created_at).toLocaleDateString()}</Text>
-                                            </View>
-                                        </View>
-                                        {currentUserId === comment.user_id && (
-                                            <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
-                                                <Trash2 color="#ef4444" size={14} />
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                    <Text className="text-white text-sm mt-1 ml-11">{comment.text}</Text>
-                                </View>
-                            ))}
-                            {comments.length === 0 && (
-                                <Text className="text-gray-500 text-center mt-4">Seja o primeiro a comentar!</Text>
-                            )}
-                        </View>
-                    </ScrollView>
+                        <Text className="text-white px-4 mb-3 text-base">{post?.content_text}</Text>
 
-                    {/* Input Area */}
-                    <View className="p-4 bg-[#141414] border-t border-gray-800 flex-row items-center pb-24">
-                        <TextInput
-                            className="flex-1 bg-[#2B2B2B] min-h-[48px] max-h-24 rounded-full px-4 text-white mr-2 pt-3 pb-3"
-                            placeholder="Escreva um comentário..."
-                            placeholderTextColor="#9CA3AF"
-                            multiline
-                            value={newComment}
-                            onChangeText={setNewComment}
-                        />
-                        <TouchableOpacity
-                            className="w-12 h-12 bg-[#D4AF37] rounded-full items-center justify-center"
-                            onPress={handleSendComment}
-                        >
-                            <Send color="black" size={20} />
-                        </TouchableOpacity>
+                        {post?.image_url && (
+                            <Image
+                                source={{ uri: post.image_url }}
+                                className="w-full h-80 bg-gray-800"
+                                resizeMode="cover"
+                            />
+                        )}
+
+                        <View className="p-4 flex-row items-center gap-6 border-t border-gray-700 mt-2">
+                            <TouchableOpacity
+                                className="flex-row items-center gap-2"
+                                onPress={handleLike}
+                            >
+                                <Animatable.View
+                                    key={hasLiked ? 'liked' : 'unliked'}
+                                    animation={hasLiked ? 'bounceIn' : undefined}
+                                    duration={500}
+                                    useNativeDriver
+                                >
+                                    <Heart color={hasLiked ? "#E50914" : "white"} fill={hasLiked ? "#E50914" : "transparent"} size={24} />
+                                </Animatable.View>
+                                <Text className="text-gray-300 text-sm">{likesCount} Curtidas</Text>
+                            </TouchableOpacity>
+
+                            <View className="flex-row items-center gap-2">
+                                <MessageSquare color="white" size={24} />
+                                <Text className="text-gray-300 text-sm">{comments.length} Comentários</Text>
+                            </View>
+                        </View>
                     </View>
-                </KeyboardAvoidingView>
+
+                    {/* Comments List */}
+                    <View className="px-4 pb-20">
+                        <Text className="text-gray-400 mb-4 font-bold">Comentários</Text>
+                        {comments.map((comment) => (
+                            <View key={comment.id} className="bg-[#2B2B2B] p-3 rounded-lg mb-3">
+                                <View className="flex-row justify-between items-start">
+                                    <View className="flex-row items-center gap-3 mb-1">
+                                        {profilesMap[comment.user_id]?.avatar_url ? (
+                                            <Image
+                                                source={{ uri: profilesMap[comment.user_id].avatar_url }}
+                                                className="w-8 h-8 rounded-full bg-gray-600"
+                                            />
+                                        ) : (
+                                            <View className="w-8 h-8 rounded-full bg-gray-500 items-center justify-center">
+                                                <Text className="text-white font-bold text-xs">{profilesMap[comment.user_id]?.full_name?.charAt(0) || '?'}</Text>
+                                            </View>
+                                        )}
+                                        <View>
+                                            <Text className="text-[#D4AF37] font-bold text-xs">{profilesMap[comment.user_id]?.full_name || 'Usuário'}</Text>
+                                            <Text className="text-gray-500 text-[10px]">{new Date(comment.created_at).toLocaleDateString()}</Text>
+                                        </View>
+                                    </View>
+                                    {currentUserId === comment.user_id && (
+                                        <TouchableOpacity onPress={() => handleDeleteComment(comment.id)}>
+                                            <Trash2 color="#ef4444" size={14} />
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                <Text className="text-white text-sm mt-1 ml-11">{comment.text}</Text>
+                            </View>
+                        ))}
+                        {comments.length === 0 && (
+                            <Text className="text-gray-500 text-center mt-4">Seja o primeiro a comentar!</Text>
+                        )}
+                    </View>
+                </ScrollView>
+
+                {/* Input Area */}
+                <View className={`p-4 bg-[#141414] border-t border-gray-800 flex-row items-center ${keyboardVisible ? (Platform.OS === 'ios' ? 'pb-8' : 'pb-4') : 'pb-[90px]'}`}>
+                    <TextInput
+                        className="flex-1 bg-[#2B2B2B] min-h-[48px] max-h-24 rounded-full px-4 text-white mr-2 pt-3 pb-3"
+                        placeholder="Escreva um comentário..."
+                        placeholderTextColor="#9CA3AF"
+                        multiline
+                        value={newComment}
+                        onChangeText={setNewComment}
+                    />
+                    <TouchableOpacity
+                        className="w-12 h-12 bg-[#D4AF37] rounded-full items-center justify-center"
+                        onPress={handleSendComment}
+                    >
+                        <Send color="black" size={20} />
+                    </TouchableOpacity>
+                </View>
             </SafeAreaView>
-        </View>
+        </KeyboardAvoidingView>
     );
 }

@@ -40,7 +40,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { messages } = await req.json()
+    const { messages, userContext } = await req.json()
 
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: 'Formato de "messages" inválido.' }), {
@@ -70,6 +70,18 @@ Deno.serve(async (req: Request) => {
       geminiMessages.shift();
     }
 
+    // Monta o System Prompt dinâmico, inserindo dados do usuário caso enviados.
+    let dynamicSystemPrompt = SYSTEM_PROMPT;
+    if (userContext && typeof userContext === 'object') {
+      const { name, email, age, contextInfo } = userContext;
+      dynamicSystemPrompt += `\n\n# CONTEXTO ATUAL DO USUÁRIO OBRIGATÓRIO (MEMÓRIA PERMANENTE):\n`;
+      if (name) dynamicSystemPrompt += `- Nome da paciente: ${name}\n`;
+      if (email) dynamicSystemPrompt += `- Email: ${email}\n`;
+      if (age) dynamicSystemPrompt += `- Idade/Faixa etária: ${age}\n`;
+      if (contextInfo) dynamicSystemPrompt += `- Informações adicionais salvas: ${contextInfo}\n`;
+      dynamicSystemPrompt += `\nLembre-se SEMPRE de usar essas informações para personalizar o atendimento, começando pelo nome se for a primeira mensagem, e adaptando o tom e orientações ao perfil dela.`;
+    }
+
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
@@ -77,7 +89,7 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         systemInstruction: {
-          parts: [{ text: SYSTEM_PROMPT }]
+          parts: [{ text: dynamicSystemPrompt }]
         },
         contents: geminiMessages,
         generationConfig: {

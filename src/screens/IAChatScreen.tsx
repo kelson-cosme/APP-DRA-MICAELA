@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { supabase } from '../lib/supabase';
+import { useUser } from '../contexts/UserContext';
 
 // Tipo de mensagem esperado pela OpenAI / nossa UI
 type Message = {
@@ -13,6 +14,7 @@ type Message = {
 
 export default function IAChatScreen() {
     const navigation = useNavigation();
+    const { profile } = useUser();
 
     // Inicia com uma mensagem de saudação da IA
     const [messages, setMessages] = useState<Message[]>([
@@ -69,17 +71,47 @@ export default function IAChatScreen() {
         }
         setIsLoading(true);
 
+        // Salvando mensagem do usuário no Supabase
+        if (profile?.id) {
+            await supabase.from('chat_messages').insert({
+                user_id: profile.id,
+                role: 'user',
+                content: text.trim(),
+            });
+        }
+
         try {
-            // Chamando a Edge Function do Supabase
+            // Pegamos apenas as últimas 20 mensagens para manter o limite de tokens da Edge Function (janela de contexto móvel)
+            const contextMessages = newMessages.length > 20
+                ? newMessages.slice(newMessages.length - 20)
+                : newMessages;
+
+            // Chamando a Edge Function do Supabase com o contexto do usuário
             const { data, error } = await supabase.functions.invoke('chat-with-dra', {
-                body: { messages: newMessages },
+                body: {
+                    messages: contextMessages,
+                    userContext: profile ? {
+                        name: profile.full_name,
+                        email: profile.email
+                    } : null
+                },
             });
 
             if (error) throw error;
 
             if (data?.message) {
-                // Adiciona a resposta da IA
-                setMessages(prev => [...prev, { role: 'assistant', content: data.message.content }]);
+                // Adiciona a resposta da IA na tela
+                const aiMessage: Message = { role: 'assistant', content: data.message.content };
+                setMessages(prev => [...prev, aiMessage]);
+
+                // Salva a resposta da IA no Supabase
+                if (profile?.id) {
+                    await supabase.from('chat_messages').insert({
+                        user_id: profile.id,
+                        role: 'assistant',
+                        content: aiMessage.content,
+                    });
+                }
             } else if (data?.error) {
                 setMessages(prev => [...prev, { role: 'assistant', content: 'Desculpe, ' + data.error }]);
             }
@@ -185,7 +217,7 @@ export default function IAChatScreen() {
                 {/* Input Area */}
                 <View className={`p-4 border-t border-[#333333] bg-[#222222] min-h-24 ${keyboardVisible ? 'pb-4' : 'pb-[90px]'}`}>
                     {/* Quick Replies (Chips) */}
-                    {messages.length === 1 && (
+                    {messages.length <= 1 && (
                         <View className="mb-4">
                             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                                 {QUICK_REPLIES.map((reply, index) => (

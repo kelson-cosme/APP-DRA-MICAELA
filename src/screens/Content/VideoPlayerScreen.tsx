@@ -220,7 +220,11 @@ export default function VideoPlayerScreen() {
     const currentQualityLabel = QUALITY_OPTIONS.find(q => q.value === selectedQuality)?.label || 'Auto';
 
     return (
-        <View className="flex-1 bg-[#2C2926]">
+        <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            style={{ flex: 1, backgroundColor: '#2C2926' }}
+            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
             {/* Header */}
             <SafeAreaView
                 className="absolute top-0 left-0 right-0 z-50 px-4 pt-2 flex-row justify-between items-center"
@@ -310,138 +314,132 @@ export default function VideoPlayerScreen() {
             </Modal>
 
             <View className="flex-1 flex-col">
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    className="flex-1"
-                    keyboardVerticalOffset={Platform.OS === 'ios' ? keyboardOffset : 0}
+                <ScrollView
+                    className="flex-1 px-4 py-4"
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4AF37" />}
                 >
-                    <ScrollView
-                        className="flex-1 px-4 py-4"
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4AF37" />}
-                    >
-                        <Text className="text-white text-2xl font-bold mb-2">{episode?.title}</Text>
-                        <Text className="text-gray-400 text-sm mb-6">{episode?.description}</Text>
+                    <Text className="text-white text-2xl font-bold mb-2">{episode?.title}</Text>
+                    <Text className="text-gray-400 text-sm mb-6">{episode?.description}</Text>
 
-                        {/* Actions */}
-                        <View className="flex-row items-center justify-between mb-6 border-b border-[#D4AF37]/30 pb-6">
-                            <View className="flex-row items-center gap-6">
-                                <TouchableOpacity className="items-center gap-1" onPress={handleLike}>
-                                    <Heart
-                                        color={hasLiked ? '#D4AF37' : 'white'}
-                                        fill={hasLiked ? '#D4AF37' : 'transparent'}
-                                        size={28}
-                                    />
-                                    <Text className="text-white text-xs">{likesCount}</Text>
-                                </TouchableOpacity>
-                                <View className="items-center gap-1">
-                                    <MessageSquare color="white" size={28} />
-                                    <Text className="text-white text-xs">{comments.length}</Text>
-                                </View>
-                            </View>
-
-                            <TouchableOpacity
-                                className={`flex-row items-center gap-2 px-4 py-2 rounded-full ${isCompleted ? 'bg-[#D4AF37]' : 'bg-[#D4AF37]/20 border border-[#D4AF37]'}`}
-                                onPress={handleToggleCompletion}
-                            >
-                                <CheckCircle size={20} color={isCompleted ? 'black' : '#D4AF37'} />
-                                <Text className={`font-bold ${isCompleted ? 'text-black' : 'text-[#D4AF37]'}`}>
-                                    {isCompleted ? 'Concluída' : 'Concluir Aula'}
-                                </Text>
+                    {/* Actions */}
+                    <View className="flex-row items-center justify-between mb-6 border-b border-[#D4AF37]/30 pb-6">
+                        <View className="flex-row items-center gap-6">
+                            <TouchableOpacity className="items-center gap-1" onPress={handleLike}>
+                                <Heart
+                                    color={hasLiked ? '#D4AF37' : 'white'}
+                                    fill={hasLiked ? '#D4AF37' : 'transparent'}
+                                    size={28}
+                                />
+                                <Text className="text-white text-xs">{likesCount}</Text>
                             </TouchableOpacity>
+                            <View className="items-center gap-1">
+                                <MessageSquare color="white" size={28} />
+                                <Text className="text-white text-xs">{comments.length}</Text>
+                            </View>
                         </View>
 
-                        {/* Comments */}
-                        <Text className="text-white font-bold text-lg mb-4">Comentários</Text>
-                        {comments.filter(c => !c.parent_id).map((comment) => {
-                            const userName = profilesMap[comment.user_id]?.full_name || 'Usuário Anônimo';
-                            const replies = comments.filter(c => c.parent_id === comment.id);
-                            const isExpanded = expandedComments.has(comment.id);
+                        <TouchableOpacity
+                            className={`flex-row items-center gap-2 px-4 py-2 rounded-full ${isCompleted ? 'bg-[#D4AF37]' : 'bg-[#D4AF37]/20 border border-[#D4AF37]'}`}
+                            onPress={handleToggleCompletion}
+                        >
+                            <CheckCircle size={20} color={isCompleted ? 'black' : '#D4AF37'} />
+                            <Text className={`font-bold ${isCompleted ? 'text-black' : 'text-[#D4AF37]'}`}>
+                                {isCompleted ? 'Concluída' : 'Concluir Aula'}
+                            </Text>
+                        </TouchableOpacity>
+                    </View>
 
-                            return (
-                                <View key={comment.id} className="mb-4">
-                                    <View className="bg-[#2B2B2B] p-3 rounded-lg">
-                                        <View className="flex-row justify-between items-center mb-1">
-                                            <Text className="text-[#D4AF37] text-xs font-bold">{userName}</Text>
-                                            <Text className="text-gray-500 text-[10px]">
-                                                {new Date(comment.created_at).toLocaleDateString()}
-                                            </Text>
-                                        </View>
-                                        <Text className="text-white text-sm">{comment.text}</Text>
-                                        <View className="flex-row items-center gap-4 mt-2">
-                                            <TouchableOpacity onPress={() => setReplyingTo(comment)}>
-                                                <Text className="text-gray-400 text-xs font-bold">Responder</Text>
+                    {/* Comments */}
+                    <Text className="text-white font-bold text-lg mb-4">Comentários</Text>
+                    {comments.filter(c => !c.parent_id).map((comment) => {
+                        const userName = profilesMap[comment.user_id]?.full_name || 'Usuário Anônimo';
+                        const replies = comments.filter(c => c.parent_id === comment.id);
+                        const isExpanded = expandedComments.has(comment.id);
+
+                        return (
+                            <View key={comment.id} className="mb-4">
+                                <View className="bg-[#2B2B2B] p-3 rounded-lg">
+                                    <View className="flex-row justify-between items-center mb-1">
+                                        <Text className="text-[#D4AF37] text-xs font-bold">{userName}</Text>
+                                        <Text className="text-gray-500 text-[10px]">
+                                            {new Date(comment.created_at).toLocaleDateString()}
+                                        </Text>
+                                    </View>
+                                    <Text className="text-white text-sm">{comment.text}</Text>
+                                    <View className="flex-row items-center gap-4 mt-2">
+                                        <TouchableOpacity onPress={() => setReplyingTo(comment)}>
+                                            <Text className="text-gray-400 text-xs font-bold">Responder</Text>
+                                        </TouchableOpacity>
+                                        {replies.length > 0 && (
+                                            <TouchableOpacity
+                                                className="flex-row items-center gap-1"
+                                                onPress={() => toggleReplies(comment.id)}
+                                            >
+                                                <Text className="text-[#D4AF37] text-xs font-bold">
+                                                    {isExpanded ? 'Ocultar' : `Ver ${replies.length} resposta(s)`}
+                                                </Text>
+                                                {isExpanded
+                                                    ? <ChevronUp size={14} color="#D4AF37" />
+                                                    : <ChevronDown size={14} color="#D4AF37" />
+                                                }
                                             </TouchableOpacity>
-                                            {replies.length > 0 && (
-                                                <TouchableOpacity
-                                                    className="flex-row items-center gap-1"
-                                                    onPress={() => toggleReplies(comment.id)}
-                                                >
-                                                    <Text className="text-[#D4AF37] text-xs font-bold">
-                                                        {isExpanded ? 'Ocultar' : `Ver ${replies.length} resposta(s)`}
-                                                    </Text>
-                                                    {isExpanded
-                                                        ? <ChevronUp size={14} color="#D4AF37" />
-                                                        : <ChevronDown size={14} color="#D4AF37" />
-                                                    }
-                                                </TouchableOpacity>
-                                            )}
+                                        )}
+                                    </View>
+                                </View>
+
+                                {isExpanded && replies.map((reply: any) => (
+                                    <View key={reply.id} className="pl-4 mt-2 ml-2">
+                                        <View className="bg-[#2B2B2B]/50 p-2 rounded-lg border-l-2 border-[#D4AF37]/30">
+                                            <View className="flex-row justify-between items-center mb-1">
+                                                <Text className="text-[#D4AF37] text-xs font-bold">
+                                                    {profilesMap[reply.user_id]?.full_name || 'Usuário'}
+                                                </Text>
+                                                <Text className="text-gray-500 text-[10px]">
+                                                    {new Date(reply.created_at).toLocaleDateString()}
+                                                </Text>
+                                            </View>
+                                            <Text className="text-white text-xs">{reply.text}</Text>
                                         </View>
                                     </View>
-
-                                    {isExpanded && replies.map((reply: any) => (
-                                        <View key={reply.id} className="pl-4 mt-2 ml-2">
-                                            <View className="bg-[#2B2B2B]/50 p-2 rounded-lg border-l-2 border-[#D4AF37]/30">
-                                                <View className="flex-row justify-between items-center mb-1">
-                                                    <Text className="text-[#D4AF37] text-xs font-bold">
-                                                        {profilesMap[reply.user_id]?.full_name || 'Usuário'}
-                                                    </Text>
-                                                    <Text className="text-gray-500 text-[10px]">
-                                                        {new Date(reply.created_at).toLocaleDateString()}
-                                                    </Text>
-                                                </View>
-                                                <Text className="text-white text-xs">{reply.text}</Text>
-                                            </View>
-                                        </View>
-                                    ))}
-                                </View>
-                            );
-                        })}
-                        <View className="h-5" />
-                    </ScrollView>
-
-                    {/* Comment Input */}
-                    <View className="p-4 bg-[#2C2926] border-t border-[#D4AF37]/30 flex-col pb-8">
-                        {replyingTo && (
-                            <View className="flex-row justify-between items-center mb-2 px-2">
-                                <Text className="text-gray-400 text-xs">
-                                    Respondendo a{' '}
-                                    <Text className="text-[#D4AF37] font-bold">
-                                        {profilesMap[replyingTo.user_id]?.full_name || 'Usuário'}
-                                    </Text>
-                                </Text>
-                                <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                                    <Text className="text-red-500 text-xs">Cancelar</Text>
-                                </TouchableOpacity>
+                                ))}
                             </View>
-                        )}
-                        <View className="flex-row items-center">
-                            <TextInput
-                                className="flex-1 bg-[#3E3B36] h-12 rounded-full px-4 text-white mr-2 border border-[#524E48]"
-                                placeholder={replyingTo ? 'Escreva sua resposta...' : 'Adicione um comentário...'}
-                                placeholderTextColor="#9CA3AF"
-                                value={newComment}
-                                onChangeText={setNewComment}
-                            />
-                            <TouchableOpacity
-                                className="w-12 h-12 bg-[#D4AF37] rounded-full items-center justify-center"
-                                onPress={handleSendComment}
-                            >
-                                <Send color="black" size={20} />
+                        );
+                    })}
+                    <View className="h-5" />
+                </ScrollView>
+
+                {/* Comment Input */}
+                <View className={`p-4 bg-[#2C2926] border-t border-[#D4AF37]/30 flex-col ${Platform.OS === 'ios' ? 'pb-8' : 'pb-4'}`}>
+                    {replyingTo && (
+                        <View className="flex-row justify-between items-center mb-2 px-2">
+                            <Text className="text-gray-400 text-xs">
+                                Respondendo a{' '}
+                                <Text className="text-[#D4AF37] font-bold">
+                                    {profilesMap[replyingTo.user_id]?.full_name || 'Usuário'}
+                                </Text>
+                            </Text>
+                            <TouchableOpacity onPress={() => setReplyingTo(null)}>
+                                <Text className="text-red-500 text-xs">Cancelar</Text>
                             </TouchableOpacity>
                         </View>
+                    )}
+                    <View className="flex-row items-center">
+                        <TextInput
+                            className="flex-1 bg-[#3E3B36] h-12 rounded-full px-4 text-white mr-2 border border-[#524E48]"
+                            placeholder={replyingTo ? 'Escreva sua resposta...' : 'Adicione um comentário...'}
+                            placeholderTextColor="#9CA3AF"
+                            value={newComment}
+                            onChangeText={setNewComment}
+                        />
+                        <TouchableOpacity
+                            className="w-12 h-12 bg-[#D4AF37] rounded-full items-center justify-center"
+                            onPress={handleSendComment}
+                        >
+                            <Send color="black" size={20} />
+                        </TouchableOpacity>
                     </View>
-                </KeyboardAvoidingView>
+                </View>
             </View>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
