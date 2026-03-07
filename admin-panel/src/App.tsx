@@ -10,6 +10,7 @@ import Community from "@/pages/Community";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import AccountDeletion from "@/pages/AccountDeletion";
 import RequireAuth from "@/components/RequireAuth";
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/account-deletion" element={<AccountDeletion />} />
 
         <Route element={<RequireAuth />}>
           <Route path="/" element={<DashboardLayout />}>
