@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Trash2, MessageSquare, Send, Heart } from "lucide-react";
 import {
@@ -144,7 +144,15 @@ export default function Community() {
     const handleDeletePost = async (id: string) => {
         if (!confirm("Are you sure you want to delete this post?")) return;
 
-        const { error } = await supabase.from("community_posts").delete().eq("id", id);
+        const clientToUse = supabaseAdmin || supabase;
+
+        // First delete any likes/comments if necessary due to foreign key constraints,
+        // although if they have ON DELETE CASCADE they will handle themselves.
+        // Assuming we need to delete comments and likes manually to be safe, like with events.
+        await clientToUse.from("community_likes").delete().eq("post_id", id);
+        await clientToUse.from("community_comments").delete().eq("post_id", id);
+
+        const { error } = await clientToUse.from("community_posts").delete().eq("id", id);
         if (error) {
             console.error("Error deleting post:", error);
             alert("Error deleting post: " + error.message);

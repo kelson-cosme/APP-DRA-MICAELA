@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase, supabaseAdmin } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, CalendarDays, Pencil, Users } from "lucide-react";
 import {
@@ -155,6 +155,17 @@ export default function Events() {
     const handleDelete = async (id: string) => {
         if (!confirm("Tem certeza que deseja deletar este evento?")) return;
         setLoading(true);
+
+        // Primeiro, exclui as reservas (RSVPs) usando o admin client (para bypass de RLS)
+        const clientToUse = supabaseAdmin || supabase;
+        const { error: rsvpError } = await clientToUse.from("event_rsvps").delete().eq("event_id", id);
+
+        if (rsvpError) {
+            alert("Erro ao remover inscritos antes de deletar o evento: " + rsvpError.message);
+            // Non-blocking err for RSVPs in case of an issue, let's allow it to proceed, though 
+            // if it fails, the event delete will likely also fail. But we must log it.
+            console.error("Erro deletando RSVPs:", rsvpError);
+        }
 
         const { error } = await supabase.from("events").delete().eq("id", id);
         if (error) {

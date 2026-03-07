@@ -9,6 +9,7 @@ import Comments from "@/pages/Comments";
 import Community from "@/pages/Community";
 import Events from "@/pages/Events";
 import Login from "@/pages/Login";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import RequireAuth from "@/components/RequireAuth";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         <Route element={<RequireAuth />}>
           <Route path="/" element={<DashboardLayout />}>
