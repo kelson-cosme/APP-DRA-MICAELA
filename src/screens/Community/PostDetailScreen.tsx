@@ -189,7 +189,7 @@ export default function PostDetailScreen() {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior="padding"
             style={{ flex: 1, backgroundColor: '#141414' }}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >

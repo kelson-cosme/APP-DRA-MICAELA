@@ -92,16 +92,21 @@ export default function HomeScreen() {
                     </View>
 
                     {/* AI Chat Card */}
-                    <View className="w-full p-4 rounded-3xl bg-[#3E3B36] border border-[#524E48] mb-6">
+                    <TouchableOpacity
+                        className="w-full p-4 rounded-3xl bg-[#3E3B36] border border-[#524E48] mb-6"
+                        onPress={() => navigation.navigate('IA Mica')}
+                    >
                         <Text className="text-white text-base mb-3">Converse com a Mica, sua amiga virtual</Text>
                         <View className="flex-row items-center">
-                            <View className="w-12 h-12 rounded-full bg-[#B89B84] mr-3" />
+                            <View className="w-12 h-12 rounded-full bg-[#8B4513] items-center justify-center mr-3 overflow-hidden">
+                                <Image source={require('../../assets/mica.png')} className="w-full h-full" resizeMode="cover" />
+                            </View>
                             <View className="flex-1 bg-white rounded-xl px-4 py-3 relative">
                                 <View className="absolute left-[-6px] top-4 w-4 h-4 bg-white transform rotate-45" />
                                 <Text className="text-black text-base">Como posso te ajudar hoje?</Text>
                             </View>
                         </View>
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Diary Card */}
                     {/* Diary Card */}

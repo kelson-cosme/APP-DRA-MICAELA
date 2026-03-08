@@ -143,7 +143,7 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
                 <View className="absolute inset-0 bg-black/40" />
 
                 <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    behavior="padding"
                     className="flex-1"
                 >
                     <SafeAreaView className="w-full flex-1 justify-end px-6 pb-12 z-10">

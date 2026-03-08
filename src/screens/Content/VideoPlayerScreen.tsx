@@ -221,7 +221,7 @@ export default function VideoPlayerScreen() {
 
     return (
         <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            behavior="padding"
             style={{ flex: 1, backgroundColor: '#2C2926' }}
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
