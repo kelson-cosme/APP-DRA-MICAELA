@@ -1,6 +1,6 @@
 import "../../global.css";
 import React, { useState } from 'react';
-import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,29 @@ import { makeRedirectUri } from 'expo-auth-session';
 
 // Impede o WebBrowser de ficar aberto no iOS
 WebBrowser.maybeCompleteAuthSession();
+
+// Cria um listener pro redirecionamento
+Linking.addEventListener('url', async (event) => {
+    if (event.url.includes('#access_token') || event.url.includes('?access_token')) {
+        try {
+            // URL parse 
+            const parts = event.url.split('#')[1] || event.url.split('?')[1];
+            if (!parts) return;
+            const params = new URLSearchParams(parts);
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+
+            if (access_token && refresh_token) {
+                await supabase.auth.setSession({
+                    access_token,
+                    refresh_token
+                });
+            }
+        } catch (e) {
+            console.error('Erro setando token', e)
+        }
+    }
+});
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,9 +83,20 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                 // Abre o navegador para o login
                 const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-                if (result.type === 'success') {
-                    // O Supabase lida com o token via deeplink automatico usando expo-linking/supabase config na v2
-                    // Apenas deixamos o onAuthStateChange do App.tsx funcionar
+                // O Auth Session no iOS não emite o Listener automático às vezes.
+                // Então extraímos a URL manualmente
+                if (result.type === 'success' && result.url) {
+                    try {
+                        const parts = result.url.split('#')[1] || result.url.split('?')[1];
+                        if (parts) {
+                            const params = new URLSearchParams(parts);
+                            const access_token = params.get('access_token');
+                            const refresh_token = params.get('refresh_token');
+                            if (access_token && refresh_token) {
+                                await supabase.auth.setSession({ access_token, refresh_token });
+                            }
+                        }
+                    } catch (e) { }
                 }
             }
         } catch (error: any) {

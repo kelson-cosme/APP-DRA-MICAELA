@@ -41,17 +41,23 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         console.warn("Erro ao buscar publicProfile no onAuthStateChange:", error);
                     }
 
+                    // Força a inserção para OAuth recém criado que não disparou trigger:
+                    const fallbackName = session.user.user_metadata?.full_name || '';
+                    const fallbackAvatar = session.user.user_metadata?.avatar_url || null;
+
                     setProfile({
                         id: session.user.id,
                         email: session.user.email || null,
-                        full_name: publicProfile?.full_name || session.user.user_metadata?.full_name || '',
-                        avatar_url: publicProfile?.avatar_url || session.user.user_metadata?.avatar_url || null,
+                        full_name: publicProfile?.full_name || fallbackName,
+                        avatar_url: publicProfile?.avatar_url || fallbackAvatar,
                     });
                 } else {
                     setProfile(null);
                 }
             } catch (err) {
                 console.error("Erro inesperado no onAuthStateChange:", err);
+            } finally {
+                setLoading(false);
             }
         });
 

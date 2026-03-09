@@ -40,7 +40,7 @@ function AppInner() {
   const showSplash = !authReady || !splashFinished || (session && profileLoading);
 
   // Determine se o usuário precisa completar o perfil
-  const needsProfileCompletion = session && profile && !profile.full_name;
+  const needsProfileCompletion = session && (!profile || !profile.full_name);
 
   return (
     <View style={{ flex: 1 }}>
