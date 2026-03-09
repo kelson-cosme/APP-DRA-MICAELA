@@ -3,6 +3,7 @@
     "name": "Dra Micaela Vargas",
     "slug": "Dra Micaela Vargas",
     "version": "1.0.0",
+    "scheme": "dramicaelavargas",
     "orientation": "portrait",
     "icon": "./assets/logoApp.png",
     "userInterfaceStyle": "light",
@@ -41,7 +42,8 @@
       "color": "#D4AF37"
     },
     "plugins": [
-      "expo-video"
+      "expo-video",
+      "expo-web-browser"
     ]
   }
 }

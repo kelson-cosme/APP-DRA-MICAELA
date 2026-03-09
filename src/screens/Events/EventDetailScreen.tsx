@@ -11,7 +11,9 @@ type Event = {
     description: string;
     event_date: string;
     location: string;
+    location: string;
     image_url: string;
+    image_position?: string;
 };
 
 export default function EventDetailScreen() {
@@ -101,11 +103,14 @@ export default function EventDetailScreen() {
                 </View>
 
                 <ScrollView className="flex-1">
-                    <Image
-                        source={{ uri: event.image_url || 'https://via.placeholder.com/400x300' }}
-                        className="w-full h-80"
-                        resizeMode="cover"
-                    />
+                    <View className="w-full h-80 overflow-hidden">
+                        <Image
+                            source={{ uri: event.image_url || 'https://via.placeholder.com/400x300' }}
+                            className="w-full h-full"
+                            style={Platform.OS === 'web' ? { objectPosition: event.image_position || 'center' } as any : {}}
+                            resizeMode="cover"
+                        />
+                    </View>
 
                     <View className="px-5 py-6">
                         <Text className="text-[#D4AF37] font-bold text-sm mb-2 uppercase tracking-wider">

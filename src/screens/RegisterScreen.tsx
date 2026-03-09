@@ -8,6 +8,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
 import { supabase } from '../lib/supabase';
+import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
+import { makeRedirectUri } from 'expo-auth-session';
+
+// Impede o WebBrowser de ficar aberto no iOS
+WebBrowser.maybeCompleteAuthSession();
 
 const { width, height } = Dimensions.get('window');
 
@@ -131,6 +137,39 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
         }
     }
 
+    async function signUpWithGoogle() {
+        try {
+            setLoading(true);
+            const redirectUrl = makeRedirectUri({
+                preferLocalhost: false,
+                scheme: 'dramicaelavargas',
+            });
+
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: redirectUrl,
+                },
+            });
+
+            if (error) throw error;
+
+            if (data?.url) {
+                // Abre o navegador para o login
+                const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+
+                if (result.type === 'success') {
+                    // O Supabase lida com o token via deeplink automatico usando expo-linking/supabase config na v2
+                    // Apenas deixamos o onAuthStateChange do App.tsx funcionar
+                }
+            }
+        } catch (error: any) {
+            Alert.alert('Erro no Google Login', error.message);
+        } finally {
+            setLoading(false);
+        }
+    }
+
     return (
         <View className="flex-1 bg-black">
             <ImageBackground
@@ -238,6 +277,27 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
                                     ) : (
                                         <Text className="text-black text-lg font-bold">Cadastrar</Text>
                                     )}
+                                </TouchableOpacity>
+
+                                {/* Divisor */}
+                                <View className="flex-row items-center my-2">
+                                    <View className="flex-1 h-[1px] bg-gray-500/50" />
+                                    <Text className="text-gray-400 px-4 font-medium">Ou cadastre com</Text>
+                                    <View className="flex-1 h-[1px] bg-gray-500/50" />
+                                </View>
+
+                                {/* Google Button */}
+                                <TouchableOpacity
+                                    className="w-full h-14 bg-white rounded-xl flex-row items-center justify-center shadow-lg shadow-black/20 gap-3"
+                                    activeOpacity={0.8}
+                                    onPress={signUpWithGoogle}
+                                    disabled={loading}
+                                >
+                                    <Image
+                                        source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png' }}
+                                        style={{ width: 24, height: 24 }}
+                                    />
+                                    <Text className="text-gray-800 text-lg font-bold">Google</Text>
                                 </TouchableOpacity>
                             </View>
 

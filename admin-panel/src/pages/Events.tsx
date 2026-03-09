@@ -27,6 +27,7 @@ interface EventItem {
     event_date: string;
     location: string;
     image_url: string;
+    image_position?: string;
 }
 
 interface RSVPUser {
@@ -53,6 +54,7 @@ export default function Events() {
     const [date, setDate] = useState("");
     const [location, setLocation] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePosition, setImagePosition] = useState("center");
 
     const [editingEvent, setEditingEvent] = useState<EventItem | null>(null);
 
@@ -83,6 +85,7 @@ export default function Events() {
         setDate("");
         setLocation("");
         setImageFile(null);
+        setImagePosition("50% 50%");
         setOpen(true);
     };
 
@@ -95,6 +98,7 @@ export default function Events() {
         const formattedDate = new Date(validDate.getTime() - validDate.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
         setDate(event.event_date ? formattedDate : "");
         setLocation(event.location || "");
+        setImagePosition(event.image_position || "50% 50%");
         setImageFile(null); // Reset file input
         setOpen(true);
     };
@@ -126,7 +130,8 @@ export default function Events() {
             description,
             event_date: date ? new Date(date).toISOString() : null, // Store as ISO 8601 string
             location,
-            image_url: imageUrl
+            image_url: imageUrl,
+            image_position: imagePosition
         };
 
         let result;
@@ -146,6 +151,7 @@ export default function Events() {
             setDate("");
             setLocation("");
             setImageFile(null);
+            setImagePosition("50% 50%");
             setEditingEvent(null);
             fetchData();
         }
@@ -277,6 +283,58 @@ export default function Events() {
                                 </p>
                             )}
                         </div>
+                        {/* Visual Image Repositioning Control */}
+                        {(imageFile || editingEvent?.image_url) && (
+                            <div className="space-y-2">
+                                <Label className="flex justify-between">
+                                    <span>Ajuste de Capa (Arraste para reposicionar)</span>
+                                    <span className="text-xs text-slate-500 font-normal">{imagePosition}</span>
+                                </Label>
+                                <div className="aspect-video w-full rounded-md border overflow-hidden bg-slate-100 relative group cursor-move">
+                                    <img
+                                        src={imageFile ? URL.createObjectURL(imageFile) : (editingEvent?.image_url || '')}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover transition-transform"
+                                        style={{ objectPosition: imagePosition }}
+                                        draggable="false"
+                                        onMouseMove={(e) => {
+                                            // Only move if mouse button is held down
+                                            if (e.buttons === 1) {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+                                                const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+                                                setImagePosition(`${Math.round(x)}% ${Math.round(y)}%`);
+                                            }
+                                        }}
+                                        onTouchMove={(e) => {
+                                            // Handle mobile touch drag
+                                            if (e.touches.length > 0) {
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const touch = e.touches[0];
+                                                const x = Math.max(0, Math.min(100, ((touch.clientX - rect.left) / rect.width) * 100));
+                                                const y = Math.max(0, Math.min(100, ((touch.clientY - rect.top) / rect.height) * 100));
+                                                setImagePosition(`${Math.round(x)}% ${Math.round(y)}%`);
+                                            }
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 border-2 border-transparent group-hover:border-primary/50 transition-colors pointer-events-none rounded-md" />
+                                    <div className="absolute bg-white/80 dark:bg-black/60 backdrop-blur-sm px-2 py-1 text-[10px] rounded top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none font-medium">
+                                        Clique e arraste
+                                    </div>
+                                </div>
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 text-xs px-2"
+                                        onClick={() => setImagePosition("50% 50%")}
+                                    >
+                                        Centralizar
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <DialogFooter>
                             <Button type="submit" disabled={loading}>
                                 {loading ? "Salvando..." : (editingEvent ? "Salvar Alterações" : "Criar Evento")}
@@ -352,7 +410,12 @@ export default function Events() {
                         >
                             <div className="aspect-video w-full bg-slate-200 relative">
                                 {event.image_url ? (
-                                    <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+                                    <img
+                                        src={event.image_url}
+                                        alt={event.title}
+                                        className="w-full h-full object-cover"
+                                        style={{ objectPosition: event.image_position || 'center' }}
+                                    />
                                 ) : (
                                     <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                                         <CalendarDays className="h-10 w-10" />

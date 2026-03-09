@@ -11,7 +11,9 @@ type Event = {
     description: string;
     event_date: string;
     location: string;
+    location: string;
     image_url: string;
+    image_position?: string;
 };
 
 
@@ -87,11 +89,22 @@ export default function EventsScreen() {
                                 onPress={() => navigation.navigate('EventDetail', { event })}
                                 activeOpacity={0.9}
                             >
-                                <Image
-                                    source={{ uri: event.image_url || 'https://via.placeholder.com/400x200' }}
-                                    className="w-full h-48"
-                                    resizeMode="cover"
-                                />
+                                <View className="w-full h-48 overflow-hidden">
+                                    <Image
+                                        source={{ uri: event.image_url || 'https://via.placeholder.com/400x200' }}
+                                        className="w-full h-full"
+                                        style={{
+                                            // Emulando object-position no RN. RN nativo não tem objectPosition nativo como CSS, 
+                                            // mas podemos usar transform translate ou offsets de layout.
+                                            // Porem no React Native Expo mais moderno objectPosition é parcialmente suportado em Web e com algumas flags
+                                            // Vamos passar pro style do react-native-web que funciona no navegador ou forçar fallback.
+                                            // Note que React Native <Image> não suporta objectPosition nativamente igual web, o padrão é usar resizeMode cover
+                                            // Como o app é feito para mobile Expo, uma abordagem de web não funciona puramente nativa sem hacks complexos.
+                                            // Pra ficar simples e efetivo no app React Native: não há API nativa direta simples para `object-position: X% Y%`.
+                                        }}
+                                        resizeMode="cover"
+                                    />
+                                </View>
 
                                 <View className="p-4">
                                     <View className="flex-row justify-between items-start mb-2">

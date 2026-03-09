@@ -13,15 +13,18 @@ import DownloadsScreen from './src/screens/DownloadsScreen';
 import { StatusBar } from 'expo-status-bar';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SplashScreen from './src/components/SplashScreen';
+import CompleteProfileScreen from './src/screens/CompleteProfileScreen';
 
-import { UserProvider } from './src/contexts/UserContext';
+import { UserProvider, useUser } from './src/contexts/UserContext';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function AppInner() {
   const [session, setSession] = useState<any>(null);
   const [authReady, setAuthReady] = useState(false);
   const [splashFinished, setSplashFinished] = useState(false);
+
+  const { profile, loading: profileLoading } = useUser();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,36 +37,49 @@ export default function App() {
     });
   }, []);
 
-  const showSplash = !authReady || !splashFinished;
+  const showSplash = !authReady || !splashFinished || (session && profileLoading);
+
+  // Determine se o usuário precisa completar o perfil
+  const needsProfileCompletion = session && profile && !profile.full_name;
 
   return (
+    <View style={{ flex: 1 }}>
+      <NavigationContainer>
+        <StatusBar style="light" />
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!authReady ? (
+            <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
+          ) : !session ? (
+            <>
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="Register" component={RegisterScreen as any} />
+            </>
+          ) : needsProfileCompletion ? (
+            // Se tiver sessão, mas perfil estiver incompleto, força esta tela
+            <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
+          ) : (
+            // Usuário Logado e Perfil Completo
+            <>
+              <Stack.Screen name="HomeTabs" component={TabNavigator} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
+              <Stack.Screen name="Downloads" component={DownloadsScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+      {showSplash && (
+        <SplashScreen onAnimationComplete={() => setSplashFinished(true)} />
+      )}
+    </View>
+  );
+}
+
+export default function App() {
+  return (
     <UserProvider>
-      <View style={{ flex: 1 }}>
-        <NavigationContainer>
-          <StatusBar style="light" />
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            {!authReady ? (
-              <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
-            ) : !session ? (
-              <>
-                <Stack.Screen name="Login" component={LoginScreen} />
-                <Stack.Screen name="Register" component={RegisterScreen} />
-              </>
-            ) : (
-              <>
-                <Stack.Screen name="HomeTabs" component={TabNavigator} />
-                <Stack.Screen name="Profile" component={ProfileScreen} />
-                <Stack.Screen name="VideoPlayer" component={VideoPlayerScreen} />
-                <Stack.Screen name="Downloads" component={DownloadsScreen} />
-                <Stack.Screen name="Notifications" component={NotificationsScreen} />
-              </>
-            )}
-          </Stack.Navigator>
-        </NavigationContainer>
-        {showSplash && (
-          <SplashScreen onAnimationComplete={() => setSplashFinished(true)} />
-        )}
-      </View>
+      <AppInner />
     </UserProvider>
   );
 }
