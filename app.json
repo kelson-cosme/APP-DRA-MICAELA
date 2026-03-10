@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dra Micaela Vargas",
-    "slug": "Dra Micaela Vargas",
+    "slug": "dra-micaela-vargas",
     "version": "1.0.0",
     "scheme": "dramicaelavargas",
     "orientation": "portrait",
@@ -27,7 +27,23 @@
       },
       "package": "com.dramicaelavargas.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "dramicaelavargas"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ]
     },
     "web": {
       "favicon": "./assets/logoApp.png"

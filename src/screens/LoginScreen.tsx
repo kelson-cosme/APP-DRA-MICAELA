@@ -1,35 +1,35 @@
 import "../../global.css";
-import React, { useState } from 'react';
-import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Image } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
-import { makeRedirectUri } from 'expo-auth-session';
 
-// Impede o WebBrowser de ficar aberto no iOS
 WebBrowser.maybeCompleteAuthSession();
 
-// Cria um listener pro redirecionamento
+// Flag global para evitar processar o token duas vezes
+// (uma vez pelo DeepLink listener e outra pelo WebBrowser result)
+let tokenAlreadyProcessed = false;
+
 Linking.addEventListener('url', async (event) => {
+    if (tokenAlreadyProcessed) return;
     if (event.url.includes('#access_token') || event.url.includes('?access_token')) {
+        tokenAlreadyProcessed = true;
         try {
-            // URL parse 
             const parts = event.url.split('#')[1] || event.url.split('?')[1];
             if (!parts) return;
             const params = new URLSearchParams(parts);
             const access_token = params.get('access_token');
             const refresh_token = params.get('refresh_token');
-
             if (access_token && refresh_token) {
-                await supabase.auth.setSession({
-                    access_token,
-                    refresh_token
-                });
+                await supabase.auth.setSession({ access_token, refresh_token });
             }
         } catch (e) {
-            console.error('Erro setando token', e)
+            console.error('❌ [DeepLink] Erro:', e);
+        } finally {
+            setTimeout(() => { tokenAlreadyProcessed = false; }, 3000);
         }
     }
 });
@@ -47,56 +47,46 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
             Alert.alert('Erro', 'Por favor, preencha email e senha.');
             return;
         }
-
         setLoading(true);
-        const { error } = await supabase.auth.signInWithPassword({
-            email: email,
-            password: password,
-        });
-
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
             Alert.alert('Erro no Login', error.message);
             setLoading(false);
-        } else {
-            // Success: App.tsx will handle navigation via onAuthStateChange
         }
     }
 
     async function signInWithGoogle() {
         try {
             setLoading(true);
-            const redirectUrl = makeRedirectUri({
-                preferLocalhost: false,
-                scheme: 'dramicaelavargas',
-            });
+            tokenAlreadyProcessed = false;
+
+            const redirectUrl = 'dramicaelavargas://auth/callback';
 
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
-                options: {
-                    redirectTo: redirectUrl,
-                },
+                options: { redirectTo: redirectUrl },
             });
 
             if (error) throw error;
 
             if (data?.url) {
-                // Abre o navegador para o login
                 const result = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
 
-                // O Auth Session no iOS não emite o Listener automático às vezes.
-                // Então extraímos a URL manualmente
-                if (result.type === 'success' && result.url) {
-                    try {
-                        const parts = result.url.split('#')[1] || result.url.split('?')[1];
+                if (result.type === 'success' && !tokenAlreadyProcessed) {
+                    const resultUrl = (result as any).url;
+                    if (resultUrl) {
+                        const parts = resultUrl.split('#')[1] || resultUrl.split('?')[1];
                         if (parts) {
                             const params = new URLSearchParams(parts);
                             const access_token = params.get('access_token');
                             const refresh_token = params.get('refresh_token');
                             if (access_token && refresh_token) {
+                                tokenAlreadyProcessed = true;
                                 await supabase.auth.setSession({ access_token, refresh_token });
+                                setTimeout(() => { tokenAlreadyProcessed = false; }, 3000);
                             }
                         }
-                    } catch (e) { }
+                    }
                 }
             }
         } catch (error: any) {
@@ -114,13 +104,8 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                 resizeMode="cover"
                 style={{ width: width, height: height }}
             >
-                {/* Dark Gradient/Overlay */}
                 <View className="absolute inset-0 bg-black/40" />
-
-                <KeyboardAvoidingView
-                    behavior="padding"
-                    className="flex-1"
-                >
+                <KeyboardAvoidingView behavior="padding" className="flex-1">
                     <SafeAreaView className="w-full flex-1 justify-end px-6 pb-12 z-10">
                         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}>
 
@@ -132,7 +117,6 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                                 />
                             </View>
 
-                            {/* Form */}
                             <View className="w-full gap-4">
                                 <TextInput
                                     className="w-full bg-white/90 h-14 rounded-xl px-4 text-gray-800 text-lg border border-gray-200"
@@ -143,7 +127,6 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                                     value={email}
                                     onChangeText={setEmail}
                                 />
-
                                 <TextInput
                                     className="w-full bg-white/90 h-14 rounded-xl px-4 text-gray-800 text-lg border border-gray-200"
                                     placeholder="Sua Senha"
@@ -154,61 +137,51 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                                 />
 
                                 <View className="w-full flex-row justify-between items-center mt-2">
-                                    <TouchableOpacity
-                                        className="flex-row items-center gap-2"
-                                        onPress={() => setRemember(!remember)}
-                                    >
+                                    <TouchableOpacity className="flex-row items-center gap-2" onPress={() => setRemember(!remember)}>
                                         <View className={`w-5 h-5 rounded border border-white items-center justify-center ${remember ? 'bg-[#C5A668] border-[#C5A668]' : 'bg-transparent'}`}>
                                             {remember && <View className="w-3 h-3 bg-white rounded-sm" />}
                                         </View>
-                                        <Text className="text-white text-base font-medium shadow-black/50 shadow-sm">Lembrar</Text>
+                                        <Text className="text-white text-base font-medium">Lembrar</Text>
                                     </TouchableOpacity>
-
                                     <TouchableOpacity>
-                                        <Text className="text-white text-base font-medium shadow-black/50 shadow-sm">Esqueceu a senha?</Text>
+                                        <Text className="text-white text-base font-medium">Esqueceu a senha?</Text>
                                     </TouchableOpacity>
                                 </View>
 
                                 <TouchableOpacity
-                                    className="w-full h-14 bg-[#D4AF37] rounded-xl items-center justify-center mt-6 shadow-lg shadow-black/20"
+                                    className="w-full h-14 bg-[#D4AF37] rounded-xl items-center justify-center mt-6"
                                     activeOpacity={0.8}
                                     onPress={signInWithEmail}
                                     disabled={loading}
                                 >
-                                    {loading ? (
-                                        <ActivityIndicator color="black" />
-                                    ) : (
-                                        <Text className="text-black text-lg font-bold">Entrar</Text>
-                                    )}
+                                    {loading ? <ActivityIndicator color="black" /> : <Text className="text-black text-lg font-bold">Entrar</Text>}
                                 </TouchableOpacity>
 
-                                {/* Divisor */}
                                 <View className="flex-row items-center my-2">
                                     <View className="flex-1 h-[1px] bg-gray-500/50" />
                                     <Text className="text-gray-400 px-4 font-medium">Ou continue com</Text>
                                     <View className="flex-1 h-[1px] bg-gray-500/50" />
                                 </View>
 
-                                {/* Google Button */}
                                 <TouchableOpacity
-                                    className="w-full h-14 bg-white rounded-xl flex-row items-center justify-center shadow-lg shadow-black/20 gap-3"
+                                    className="w-full h-14 bg-white rounded-xl flex-row items-center justify-center gap-3"
                                     activeOpacity={0.8}
                                     onPress={signInWithGoogle}
                                     disabled={loading}
                                 >
                                     <Image
-                                        source={{ uri: 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png' }}
+                                        source={require('../../assets/gmail.png')}
                                         style={{ width: 24, height: 24 }}
+                                        resizeMode="contain"
                                     />
                                     <Text className="text-gray-800 text-lg font-bold">Google</Text>
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Footer */}
                             <View className="flex-row items-center mt-10 gap-1 mb-4 justify-center">
-                                <Text className="text-gray-300 text-base shadow-black/50 shadow-sm">Não tem acesso?</Text>
+                                <Text className="text-gray-300 text-base">Não tem acesso?</Text>
                                 <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                                    <Text className="text-[#D4AF37] text-base font-bold shadow-black/50 shadow-sm">Cadastre agora mesmo</Text>
+                                    <Text className="text-[#D4AF37] text-base font-bold"> Cadastre agora mesmo</Text>
                                 </TouchableOpacity>
                             </View>
 

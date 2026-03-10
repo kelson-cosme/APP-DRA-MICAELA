@@ -1,9 +1,8 @@
 import "./global.css";
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
-import { supabase } from './src/lib/supabase';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import TabNavigator from './src/navigation/TabNavigator';
@@ -19,50 +18,45 @@ import { UserProvider, useUser } from './src/contexts/UserContext';
 
 const Stack = createNativeStackNavigator();
 
+// Tela em branco — componente separado para evitar warning de inline function
+const BlankScreen = () => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />;
+
 function AppInner() {
-  const [session, setSession] = useState<any>(null);
-  const [authReady, setAuthReady] = useState(false);
+  // splashFinished controla se a animação inicial já foi exibida
+  // Uma vez true, nunca volta para false — a splash não reaparece após login/logout
   const [splashFinished, setSplashFinished] = useState(false);
 
-  const { profile, loading: profileLoading } = useUser();
-  const handleSplashFinish = useCallback(() => setSplashFinished(true), []);
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setAuthReady(true);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
-    return () => subscription.unsubscribe();
+  const handleSplashFinish = useCallback(() => {
+    setSplashFinished(true);
   }, []);
 
-  // Só mostra a splash se o auth ainda não carregou OU se o perfil ainda está carregando ENQUANTO temos sessão
-  const showSplash = (!authReady || !splashFinished) || (session && profileLoading);
+  const { profile, loading: profileLoading } = useUser();
 
-  // Determine se o usuário precisa completar o perfil
-  const needsProfileCompletion = session && (!profile || !profile.full_name);
+  // isReady: contexto terminou de carregar (INITIAL_SESSION processado)
+  const isReady = !profileLoading;
+
+  // hasSession: carregou E existe perfil
+  const hasSession = isReady && profile !== null;
+
+  // Precisa completar perfil se logado mas sem nome
+  const needsProfileCompletion = hasSession && !profile?.full_name;
 
   return (
     <View style={{ flex: 1 }}>
       <NavigationContainer>
         <StatusBar style="light" />
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          {!authReady ? (
-            <Stack.Screen name="Init" component={() => <View style={{ flex: 1, backgroundColor: '#1a1a1a' }} />} />
-          ) : !session ? (
+          {!isReady ? (
+            // Contexto ainda carregando — tela em branco (splash cobre)
+            <Stack.Screen name="Init" component={BlankScreen} />
+          ) : !hasSession ? (
             <>
               <Stack.Screen name="Login" component={LoginScreen} />
               <Stack.Screen name="Register" component={RegisterScreen as any} />
             </>
           ) : needsProfileCompletion ? (
-            // Se tiver sessão, mas perfil estiver incompleto, força esta tela
             <Stack.Screen name="CompleteProfile" component={CompleteProfileScreen} />
           ) : (
-            // Usuário Logado e Perfil Completo
             <>
               <Stack.Screen name="HomeTabs" component={TabNavigator} />
               <Stack.Screen name="Profile" component={ProfileScreen} />
@@ -73,7 +67,13 @@ function AppInner() {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-      {showSplash && (
+
+      {/*
+        Splash aparece APENAS enquanto splashFinished=false.
+        Isso ocorre só na abertura do app. Após handleSplashFinish ser chamado,
+        splashFinished nunca volta a false — login/logout não reexibem a splash.
+      */}
+      {!splashFinished && (
         <SplashScreen onAnimationComplete={handleSplashFinish} />
       )}
     </View>
