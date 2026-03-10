@@ -1,5 +1,5 @@
 import "./global.css";
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
@@ -13,8 +13,10 @@ import { StatusBar } from 'expo-status-bar';
 import NotificationsScreen from './src/screens/NotificationsScreen';
 import SplashScreen from './src/components/SplashScreen';
 import CompleteProfileScreen from './src/screens/CompleteProfileScreen';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
 
 import { UserProvider, useUser } from './src/contexts/UserContext';
+import { supabase } from './src/lib/supabase';
 
 const Stack = createNativeStackNavigator();
 
@@ -31,6 +33,7 @@ function AppInner() {
   }, []);
 
   const { profile, loading: profileLoading } = useUser();
+  usePushNotifications();
 
   // isReady: contexto terminou de carregar (INITIAL_SESSION processado)
   const isReady = !profileLoading;

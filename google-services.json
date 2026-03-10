@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "558197203902",
+    "project_id": "app-dra-micaela-8f53d",
+    "storage_bucket": "app-dra-micaela-8f53d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:558197203902:android:a5f2e851f81a04d8edcfef",
+        "android_client_info": {
+          "package_name": "com.dramicaelavargas.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB8IkfDWi8QP8u_E4dP8kR97_2P-kmpKr8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
