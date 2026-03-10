@@ -28,7 +28,14 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
         fetchUserData();
 
         // Ouve mudanças de auth (login/logout)
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("Context: Auth event fired:", event, "User ID:", session?.user?.id);
+            
+            // Ativa o loading se for um evento de entrada de sessão
+            if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                setLoading(true);
+            }
+            
             try {
                 if (session?.user) {
                     const { data: publicProfile, error } = await supabase
@@ -38,26 +45,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
                         .maybeSingle();
 
                     if (error) {
-                        console.warn("Erro ao buscar publicProfile no onAuthStateChange:", error);
+                        console.warn("Context: Error fetching profile:", error.message);
                     }
 
-                    // Força a inserção para OAuth recém criado que não disparou trigger:
-                    const fallbackName = session.user.user_metadata?.full_name || '';
-                    const fallbackAvatar = session.user.user_metadata?.avatar_url || null;
+                    // Dados do Google ou do Banco
+                    const metadataName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || '';
+                    const metadataAvatar = session.user.user_metadata?.avatar_url || session.user.user_metadata?.picture || null;
 
-                    setProfile({
+                    const newProfile = {
                         id: session.user.id,
                         email: session.user.email || null,
-                        full_name: publicProfile?.full_name || fallbackName,
-                        avatar_url: publicProfile?.avatar_url || fallbackAvatar,
-                    });
+                        full_name: publicProfile?.full_name || metadataName,
+                        avatar_url: publicProfile?.avatar_url || metadataAvatar,
+                    };
+
+                    console.log("Context: Setting profile:", newProfile.full_name ? "Name OK" : "Incomplete");
+                    setProfile(newProfile);
                 } else {
+                    console.log("Context: Session is null, clearing profile");
                     setProfile(null);
                 }
             } catch (err) {
-                console.error("Erro inesperado no onAuthStateChange:", err);
+                console.error("Context: Unexpected error in onAuthStateChange:", err);
             } finally {
                 setLoading(false);
+                console.log("Context: Loading set to false");
             }
         });
 

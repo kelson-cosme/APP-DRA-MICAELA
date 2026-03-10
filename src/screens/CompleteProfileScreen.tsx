@@ -36,56 +36,68 @@ export default function CompleteProfileScreen({ navigation }: { navigation: any 
             return;
         }
 
-        if (!profile?.id) {
-            alert("Erro: ID de usuário não encontrado.");
-            return;
-        }
-
         setLoading(true);
 
         try {
+            // Se o perfil do contexto for nulo (race condition), tenta pegar direto do Auth
+            let userId = profile?.id;
+            
+            if (!userId) {
+                const { data: { user } } = await supabase.auth.getUser();
+                userId = user?.id;
+            }
+
+            if (!userId) {
+                alert("Erro: ID de usuário não encontrado. Por favor, tente fazer login novamente.");
+                setLoading(false);
+                return;
+            }
+
             let finalAvatarUrl = avatarUri;
 
-            // Upload de nova imagem de perfil do Google se o usuário selecionou do celular dele
             if (base64Image) {
-                const fileName = `avatar-${profile.id}-${Date.now()}.jpg`;
+                const fileName = `avatar-${userId}-${Date.now()}.jpg`;
                 const { error: uploadError } = await supabase.storage
                     .from('avatars')
                     .upload(fileName, decode(base64Image), {
                         contentType: 'image/jpeg',
                         upsert: true,
                     });
-
                 if (uploadError) throw uploadError;
 
                 const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
                 finalAvatarUrl = data.publicUrl;
             }
 
-            // Atualiza localmente no banco
-            const updates = {
-                id: profile.id,
+            // Upsert do perfil
+            const { error } = await supabase.from('profiles').upsert({
+                id: userId,
                 full_name: fullName.trim(),
                 avatar_url: finalAvatarUrl,
                 updated_at: new Date().toISOString(),
-            };
-
-            const { error } = await supabase.from('profiles').upsert(updates);
+            });
             if (error) throw error;
 
-            // Atualiza metadata no Auth (pra ficar salvo no auth provider tambem)
+            // Atualiza metadata no Auth para consistência
             await supabase.auth.updateUser({
-                data: { full_name: fullName.trim(), avatar_url: finalAvatarUrl }
+                data: { 
+                    full_name: fullName.trim(),
+                    avatar_url: finalAvatarUrl 
+                }
             });
 
             // Atualiza Contexto 
-            updateProfileState({ full_name: fullName.trim(), avatar_url: finalAvatarUrl });
+            updateProfileState({ 
+                id: userId,
+                full_name: fullName.trim(), 
+                avatar_url: finalAvatarUrl 
+            });
 
-            // Redireciona para o App Principal
             navigation.replace('HomeTabs');
 
         } catch (error: any) {
-            alert('Não foi possível salvar os dados. ' + error.message);
+            console.error('Erro ao salvar perfil:', error);
+            alert('Não foi possível salvar os dados: ' + (error.message || 'Erro desconhecido'));
         } finally {
             setLoading(false);
         }

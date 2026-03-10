@@ -1,5 +1,5 @@
 import "./global.css";
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View } from 'react-native';
@@ -25,6 +25,7 @@ function AppInner() {
   const [splashFinished, setSplashFinished] = useState(false);
 
   const { profile, loading: profileLoading } = useUser();
+  const handleSplashFinish = useCallback(() => setSplashFinished(true), []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -32,12 +33,15 @@ function AppInner() {
       setAuthReady(true);
     });
 
-    supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const showSplash = !authReady || !splashFinished || (session && profileLoading);
+  // Só mostra a splash se o auth ainda não carregou OU se o perfil ainda está carregando ENQUANTO temos sessão
+  const showSplash = (!authReady || !splashFinished) || (session && profileLoading);
 
   // Determine se o usuário precisa completar o perfil
   const needsProfileCompletion = session && (!profile || !profile.full_name);
@@ -70,7 +74,7 @@ function AppInner() {
         </Stack.Navigator>
       </NavigationContainer>
       {showSplash && (
-        <SplashScreen onAnimationComplete={() => setSplashFinished(true)} />
+        <SplashScreen onAnimationComplete={handleSplashFinish} />
       )}
     </View>
   );
