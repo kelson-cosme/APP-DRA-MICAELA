@@ -26,7 +26,6 @@
         "backgroundColor": "#312A27"
       },
       "package": "com.dramicaelavargas.app",
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
