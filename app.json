@@ -58,7 +58,15 @@
     },
     "plugins": [
       "expo-video",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "ndkVersion": "26.1.10909125"
+          }
+        }
+      ]
     ]
   }
 }
