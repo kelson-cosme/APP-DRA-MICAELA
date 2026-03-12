@@ -19,9 +19,9 @@ const sidebarItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
     { icon: Library, label: "Courses", href: "/courses" },
     // { icon: Video, label: "All Videos", href: "/videos" }, 
-    { icon: Users, label: "Users", href: "/users" },
-    { icon: MessageSquare, label: "Comments", href: "/comments" },
-    { icon: UsersRound, label: "Community", href: "/community" },
+    { icon: Users, label: "Usuários", href: "/users" },
+    { icon: MessageSquare, label: "Comentários", href: "/comments" },
+    { icon: UsersRound, label: "Comunidade", href: "/community" },
     { icon: Calendar, label: "Eventos", href: "/events" },
     { icon: Bell, label: "Notificações", href: "/notifications" },
 ];

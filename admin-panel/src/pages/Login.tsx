@@ -42,7 +42,7 @@ export default function Login() {
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
                 <div className="relative z-10 p-12 flex flex-col justify-end h-full text-white">
                     <h1 className="text-4xl font-bold mb-4">Dra. Micaela Vargas</h1>
-                    <p className="text-lg text-slate-300">Admin Panel & Constant Learning Platform</p>
+                    <p className="text-lg text-slate-300">Painel de administração</p>
                 </div>
             </div>
 
@@ -50,8 +50,8 @@ export default function Login() {
             <div className="flex-1 flex items-center justify-center p-8 bg-white">
                 <div className="w-full max-w-sm space-y-6">
                     <div className="space-y-2 text-center">
-                        <h2 className="text-3xl font-bold tracking-tight">Welcome back</h2>
-                        <p className="text-slate-500">Enter your credentials to access the admin panel</p>
+                        <h2 className="text-3xl font-bold tracking-tight">Bem vindo(a) de volta</h2>
+                        <p className="text-slate-500">Insira suas credenciais para acessar o painel de administração.</p>
                     </div>
 
                     <form onSubmit={handleLogin} className="space-y-4">
@@ -87,7 +87,7 @@ export default function Login() {
                     </form>
 
                     <div className="text-center text-sm text-slate-500">
-                        <p>This area is restricted to administrators.</p>
+                        <p>Esta área é restrita a administradores.</p>
                     </div>
                 </div>
             </div>
