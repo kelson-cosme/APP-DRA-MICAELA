@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 const sidebarItems = [
     { icon: LayoutDashboard, label: "Dashboard", href: "/" },
-    { icon: Library, label: "Courses", href: "/courses" },
+    { icon: Library, label: "Cursos", href: "/courses" },
     // { icon: Video, label: "All Videos", href: "/videos" }, 
     { icon: Users, label: "Usuários", href: "/users" },
     { icon: MessageSquare, label: "Comentários", href: "/comments" },
