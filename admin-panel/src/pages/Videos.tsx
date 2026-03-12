@@ -40,6 +40,7 @@ export default function Videos() {
         description: "",
         video_url: "",
     });
+    const [notifyUsers, setNotifyUsers] = useState(false);
 
     useEffect(() => {
         fetchVideos();
@@ -69,7 +70,22 @@ export default function Videos() {
             console.error("Error adding video:", error);
             alert("Error adding video: " + error.message);
         } else {
+            // Enviar notificação se marcado
+            if (notifyUsers) {
+                try {
+                    await supabase.functions.invoke('send-broadcast-notification', {
+                        body: { 
+                            title: "Novo Vídeo Disponível! 🎥", 
+                            body: `Acabamos de postar: ${formData.title}`,
+                            data: { type: 'new_video', screen: 'Videos' }
+                        }
+                    });
+                } catch (err) {
+                    console.error("Falha ao enviar notificação automática:", err);
+                }
+            }
             setFormData({ title: "", description: "", video_url: "" });
+            setNotifyUsers(false);
             setOpen(false);
             fetchVideos();
         }
@@ -142,6 +158,18 @@ export default function Videos() {
                                     }
                                     required
                                 />
+                            </div>
+                            <div className="flex items-center space-x-2 py-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="notifyVideo" 
+                                    checked={notifyUsers} 
+                                    onChange={(e) => setNotifyUsers(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                />
+                                <Label htmlFor="notifyVideo" className="text-sm font-medium leading-none cursor-pointer">
+                                    Notificar todos os usuários sobre este vídeo
+                                </Label>
                             </div>
                             <DialogFooter>
                                 <Button type="submit" disabled={loading}>

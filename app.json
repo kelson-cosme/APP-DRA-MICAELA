@@ -53,7 +53,7 @@
       }
     },
     "notification": {
-      "icon": "./assets/logoApp.png",
+      "icon": "./assets/notificacao.png",
       "color": "#D4AF37"
     },
     "plugins": [

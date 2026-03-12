@@ -11,6 +11,7 @@ import Events from "@/pages/Events";
 import Login from "@/pages/Login";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import AccountDeletion from "@/pages/AccountDeletion";
+import Notifications from "@/pages/Notifications";
 import RequireAuth from "@/components/RequireAuth";
 
 function App() {
@@ -31,6 +32,7 @@ function App() {
             <Route path="comments" element={<Comments />} />
             <Route path="community" element={<Community />} />
             <Route path="events" element={<Events />} />
+            <Route path="notifications" element={<Notifications />} />
           </Route>
         </Route>
       </Routes>

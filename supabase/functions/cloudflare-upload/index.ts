@@ -22,6 +22,11 @@ serve(async (req) => {
         }
 
         // Call Cloudflare API to get a direct TUS upload URL
+        // We append 'requiresignedurls ZmFsc2U=' (base64 for 'false') to allow public playback
+        const metadata = uploadMetadata 
+            ? `${uploadMetadata},requiresignedurls ZmFsc2U=` 
+            : 'requiresignedurls ZmFsc2U=';
+
         const response = await fetch(
             `https://api.cloudflare.com/client/v4/accounts/${accountId}/stream?direct_user=true`,
             {
@@ -30,8 +35,11 @@ serve(async (req) => {
                     'Authorization': `Bearer ${apiToken}`,
                     'Tus-Resumable': '1.0.0',
                     'Upload-Length': uploadLength.toString(),
-                    'Upload-Metadata': uploadMetadata || '',
+                    'Upload-Metadata': metadata,
                 },
+                body: JSON.stringify({
+                    requireSignedURLs: false,
+                })
             }
         )
 

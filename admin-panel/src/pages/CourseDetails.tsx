@@ -5,6 +5,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, ChevronLeft, FileVideo, GripVertical, Pencil, AlertCircle, CheckCircle2 } from "lucide-react";
+import { sanitizeFilename } from "@/lib/utils";
 import {
     Card,
     CardContent,
@@ -65,6 +66,7 @@ export default function CourseDetails() {
     const [uploadStage, setUploadStage] = useState<string>("");
     const [uploadError, setUploadError] = useState<string>("");
     const [uploadSuccess, setUploadSuccess] = useState(false);
+    const [notifyUsers, setNotifyUsers] = useState(false);
 
     useEffect(() => {
         if (id) fetchCourseDetails();
@@ -143,7 +145,9 @@ export default function CourseDetails() {
         setUploadProgress(0);
         setUploadStage("");
         setUploadError("");
+        setUploadError("");
         setUploadSuccess(false);
+        setNotifyUsers(false);
         setEpisodeDialogOpen(true);
     };
 
@@ -157,7 +161,9 @@ export default function CourseDetails() {
         setUploadProgress(0);
         setUploadStage("");
         setUploadError("");
+        setUploadError("");
         setUploadSuccess(false);
+        setNotifyUsers(false);
         setEpisodeDialogOpen(true);
     };
 
@@ -183,7 +189,7 @@ export default function CourseDetails() {
                 const { data: edgeData, error: edgeError } = await supabase.functions.invoke('cloudflare-upload', {
                     body: {
                         uploadLength: videoFile.size,
-                        uploadMetadata: `name ${btoa(encodeURIComponent(videoFile.name))}`,
+                        uploadMetadata: `name ${btoa(encodeURIComponent(sanitizeFilename(videoFile.name)))}`,
                     },
                 });
 
@@ -244,7 +250,8 @@ export default function CourseDetails() {
         // ── Upload de Thumbnail no Supabase Storage ───────────────────────────
         if (thumbnailFile) {
             setUploadStage("Enviando thumbnail...");
-            const fileName = `thumb-${Date.now()}-${thumbnailFile.name}`;
+            const sanitizedThumbName = sanitizeFilename(thumbnailFile.name);
+            const fileName = `thumb-${Date.now()}-${sanitizedThumbName}`;
             const { error: uploadError } = await supabase.storage
                 .from("images")
                 .upload(fileName, thumbnailFile);
@@ -282,6 +289,21 @@ export default function CourseDetails() {
         if (result.error) {
             setUploadError("Erro ao salvar episódio: " + result.error.message);
         } else {
+            // Notificar se for novo episódio e marcado
+            if (!editingEpisode && notifyUsers) {
+                try {
+                    await supabase.functions.invoke('send-broadcast-notification', {
+                        body: { 
+                            title: `Nova Aula: ${episodeTitle} 📺`, 
+                            body: `Uma nova aula foi adicionada ao curso ${courseTitle}. Confira!`,
+                            data: { type: 'new_episode', contentId: id, episodeId: (result.data as any)?.[0]?.id }
+                        }
+                    });
+                } catch (err) {
+                    console.error("Falha ao enviar notificação automática:", err);
+                }
+            }
+
             setUploadSuccess(true);
             setUploadStage("Episódio salvo com sucesso!");
             setTimeout(() => {
@@ -475,6 +497,21 @@ export default function CourseDetails() {
                                 </p>
                             )}
                         </div>
+
+                        {!editingEpisode && (
+                            <div className="flex items-center space-x-2 py-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="notifyEp" 
+                                    checked={notifyUsers} 
+                                    onChange={(e) => setNotifyUsers(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                />
+                                <Label htmlFor="notifyEp" className="text-sm font-medium leading-none cursor-pointer">
+                                    Notificar todos os usuários sobre esta nova aula
+                                </Label>
+                            </div>
+                        )}
 
                         {/* Upload Progress */}
                         {loading && uploadStage && !uploadError && (

@@ -8,7 +8,8 @@ import {
     Menu,
     LogOut,
     Library,
-    Calendar
+    Calendar,
+    Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,6 +23,7 @@ const sidebarItems = [
     { icon: MessageSquare, label: "Comments", href: "/comments" },
     { icon: UsersRound, label: "Community", href: "/community" },
     { icon: Calendar, label: "Eventos", href: "/events" },
+    { icon: Bell, label: "Notificações", href: "/notifications" },
 ];
 
 export default function DashboardLayout() {

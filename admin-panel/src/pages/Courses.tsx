@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { sanitizeFilename } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Plus, Trash2, BookOpen, Pencil, FolderPlus } from "lucide-react";
 import {
@@ -45,6 +46,7 @@ export default function Courses() {
     const [description, setDescription] = useState("");
     const [categoryId, setCategoryId] = useState("");
     const [imageFile, setImageFile] = useState<File | null>(null);
+    const [notifyUsers, setNotifyUsers] = useState(false);
 
     const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
@@ -71,6 +73,7 @@ export default function Courses() {
         setDescription("");
         setCategoryId(categories[0]?.id || "");
         setImageFile(null);
+        setNotifyUsers(false);
         setOpen(true);
     };
 
@@ -80,6 +83,7 @@ export default function Courses() {
         setDescription(course.description || "");
         setCategoryId(course.category_id);
         setImageFile(null); // Reset file input, user might not want to change it
+        setNotifyUsers(false);
         setOpen(true);
     };
 
@@ -96,7 +100,8 @@ export default function Courses() {
         let thumbnailUrl = editingCourse?.thumbnail_url || "";
 
         if (imageFile) {
-            const fileName = `course-cover-${Date.now()}-${imageFile.name}`;
+            const sanitizedName = sanitizeFilename(imageFile.name);
+            const fileName = `course-cover-${Date.now()}-${sanitizedName}`;
             const { error: uploadError } = await supabase.storage
                 .from("images")
                 .upload(fileName, imageFile);
@@ -130,6 +135,21 @@ export default function Courses() {
         if (result.error) {
             alert("Error saving course: " + result.error.message);
         } else {
+            // Se for um novo curso e o usuário marcou para notificar
+            if (!editingCourse && notifyUsers) {
+                try {
+                    await supabase.functions.invoke('send-broadcast-notification', {
+                        body: { 
+                            title: "Novo Curso Disponível! 📚", 
+                            body: `Confira o novo curso: ${title}`,
+                            data: { type: 'new_content', screen: 'Courses' }
+                        }
+                    });
+                } catch (err) {
+                    console.error("Falha ao enviar notificação automática:", err);
+                }
+            }
+
             setOpen(false);
             setTitle("");
             setDescription("");
@@ -245,6 +265,20 @@ export default function Courses() {
                                 <p className="text-xs text-slate-500">Current: <a href={editingCourse.thumbnail_url} target="_blank" className="underline">View Image</a></p>
                             )}
                         </div>
+                        {!editingCourse && (
+                            <div className="flex items-center space-x-2 py-2">
+                                <input 
+                                    type="checkbox" 
+                                    id="notify" 
+                                    checked={notifyUsers} 
+                                    onChange={(e) => setNotifyUsers(e.target.checked)}
+                                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                />
+                                <Label htmlFor="notify" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
+                                    Notificar todos os usuários sobre este novo curso
+                                </Label>
+                            </div>
+                        )}
                         <DialogFooter>
                             <Button type="submit" disabled={loading}>
                                 {loading ? "Saving..." : (editingCourse ? "Save Changes" : "Create Course")}
