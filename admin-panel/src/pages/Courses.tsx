@@ -291,32 +291,40 @@ export default function Courses() {
             {loading && !courses.length ? (
                 <div className="text-center py-20 text-slate-500">Loading courses...</div>
             ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
                     {courses.map((course) => (
                         <Card
                             key={course.id}
-                            className="overflow-hidden flex flex-col hover:shadow-lg transition-shadow cursor-pointer"
+                            className="overflow-hidden flex flex-col hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200"
                             onClick={() => navigate(`/courses/${course.id}`)}
                         >
-                            <div className="aspect-video w-full bg-slate-200 relative">
+                            <div className="aspect-video w-full bg-slate-100 relative flex-shrink-0 border-b overflow-hidden group">
                                 {course.thumbnail_url ? (
-                                    <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
+                                    <img 
+                                        src={course.thumbnail_url} 
+                                        alt={course.title} 
+                                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                    />
                                 ) : (
-                                    <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-                                        <BookOpen className="h-10 w-10" />
+                                    <div className="absolute inset-0 flex items-center justify-center text-slate-300">
+                                        <BookOpen className="h-12 w-12" />
                                     </div>
                                 )}
                             </div>
-                            <CardHeader className="p-4 pb-2">
-                                <CardTitle className="text-lg line-clamp-1">{course.title}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0 flex-1">
-                                <p className="text-sm text-slate-500 line-clamp-2">{course.description}</p>
-                            </CardContent>
-                            <CardFooter className="p-4 pt-0 flex justify-between items-center pb-4">
+                            <div className="flex flex-col flex-1 p-4 pb-0">
+                                <CardHeader className="p-0 mb-2">
+                                    <CardTitle className="text-lg font-bold line-clamp-1 h-7">{course.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-0 flex-1">
+                                    <p className="text-sm text-slate-500 line-clamp-2 h-10 italic">
+                                        {course.description || "Sem descrição disponível"}
+                                    </p>
+                                </CardContent>
+                            </div>
+                            <CardFooter className="p-4 flex justify-between items-center mt-auto">
                                 <div className="flex gap-2">
-                                    <Button variant="secondary" size="sm">
-                                        Manage Content
+                                    <Button variant="secondary" size="sm" className="h-8">
+                                        Editar Conteúdo
                                     </Button>
                                     <Button
                                         variant="ghost"

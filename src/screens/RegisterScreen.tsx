@@ -205,7 +205,7 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
     return (
         <View className="flex-1 bg-black">
             <ImageBackground
-                source={require('../../assets/background.png')}
+                source={require('../../assets/draMicaela.webp')}
                 className="flex-1 justify-end"
                 resizeMode="cover"
                 style={{ width: width, height: height }}
@@ -314,12 +314,12 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
                                 {/* Divisor */}
                                 <View className="flex-row items-center my-2">
                                     <View className="flex-1 h-[1px] bg-gray-500/50" />
-                                    <Text className="text-gray-400 px-4 font-medium">Ou cadastre com</Text>
+                                    <Text className="text-gray-400 px-4 font-medium">Ou</Text>
                                     <View className="flex-1 h-[1px] bg-gray-500/50" />
                                 </View>
 
                                 {/* Google Button */}
-                                <TouchableOpacity
+                                {/* <TouchableOpacity
                                     className="w-full h-14 bg-white rounded-xl flex-row items-center justify-center shadow-lg shadow-black/20 gap-3"
                                     activeOpacity={0.8}
                                     onPress={signUpWithGoogle}
@@ -330,7 +330,7 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
                                         style={{ width: 24, height: 24 }}
                                     />
                                     <Text className="text-gray-800 text-lg font-bold">Google</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                             </View>
 
                             {/* Footer */}

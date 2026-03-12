@@ -67,7 +67,7 @@ export default function ContentHomeScreen({ navigation }: { navigation: any }) {
 
         return (
             <TouchableOpacity
-                className="w-full h-96 relative mb-8"
+                className="w-full h-[550px] relative mb-8"
                 onPress={() => navigation.navigate('ContentDetail', { contentId: heroContent.id })}
             >
                 <Image

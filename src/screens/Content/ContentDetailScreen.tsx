@@ -147,7 +147,7 @@ export default function ContentDetailScreen() {
         <View className="flex-1 bg-[#2C2926]">
             <ScrollView className="flex-1">
                 {/* Header Image */}
-                <View className="w-full h-80 relative">
+                <View className="w-full h-[550px] relative">
                     <Image
                         source={{ uri: content?.thumbnail_url || 'https://via.placeholder.com/400x600' }}
                         className="w-full h-full"
