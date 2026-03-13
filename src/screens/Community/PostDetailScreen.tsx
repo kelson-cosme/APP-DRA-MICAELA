@@ -188,7 +188,7 @@ export default function PostDetailScreen() {
     const handleOptions = () => {
         console.log('DEBUG: handleOptions Detail called. Post Author:', post?.user_id, 'Current User:', currentUserId);
         if (!post) return;
-        
+
         if (currentUserId !== post.user_id) {
             Alert.alert("Aviso", "Você só pode editar suas próprias publicações.");
             return;
@@ -198,21 +198,21 @@ export default function PostDetailScreen() {
             "Opções da Publicação",
             "Escolha uma ação",
             [
-                { 
-                    text: "Editar", 
-                    onPress: () => navigation.navigate('CreatePost', { 
-                        post: { 
-                            id: post.id, 
-                            content_text: post.content_text, 
+                {
+                    text: "Editar",
+                    onPress: () => navigation.navigate('CreatePost', {
+                        post: {
+                            id: post.id,
+                            content_text: post.content_text,
                             image_url: post.image_url,
-                            user_id: post.user_id 
-                        } 
-                    }) 
+                            user_id: post.user_id
+                        }
+                    })
                 },
-                { 
-                    text: "Excluir", 
-                    style: "destructive", 
-                    onPress: handleDeletePost 
+                {
+                    text: "Excluir",
+                    style: "destructive",
+                    onPress: handleDeletePost
                 },
                 { text: "Cancelar", style: "cancel" }
             ]
@@ -225,9 +225,9 @@ export default function PostDetailScreen() {
             "Tem certeza que deseja excluir esta publicação?",
             [
                 { text: "Cancelar", style: "cancel" },
-                { 
-                    text: "Excluir", 
-                    style: "destructive", 
+                {
+                    text: "Excluir",
+                    style: "destructive",
                     onPress: async () => {
                         const { error } = await supabase.from('community_posts').delete().eq('id', postId);
                         if (!error) {
@@ -261,7 +261,7 @@ export default function PostDetailScreen() {
                         </TouchableOpacity>
                         <Text className="text-white font-bold text-lg">Publicação</Text>
                     </View>
-                    
+
                     <TouchableOpacity onPress={handleOptions} className="p-2">
                         <MoreVertical color={currentUserId === post?.user_id ? "white" : "#444"} size={22} />
                     </TouchableOpacity>

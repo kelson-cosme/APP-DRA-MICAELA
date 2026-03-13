@@ -112,6 +112,7 @@ export default function ContentHomeScreen({ navigation }: { navigation: any }) {
             ) : (
                 <ScrollView
                     className="flex-1"
+                    contentContainerStyle={{ paddingBottom: 100 }}
                     refreshControl={
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#D4AF37" />
                     }

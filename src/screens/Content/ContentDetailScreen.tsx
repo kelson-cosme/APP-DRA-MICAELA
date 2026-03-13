@@ -145,7 +145,10 @@ export default function ContentDetailScreen() {
 
     return (
         <View className="flex-1 bg-[#2C2926]">
-            <ScrollView className="flex-1">
+            <ScrollView 
+                className="flex-1"
+                contentContainerStyle={{ paddingBottom: 100 }}
+            >
                 {/* Header Image */}
                 <View className="w-full h-[550px] relative">
                     <Image
