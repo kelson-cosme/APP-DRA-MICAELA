@@ -86,8 +86,10 @@ function AppInner() {
 
 export default function App() {
   return (
-    <UserProvider>
-      <AppInner />
-    </UserProvider>
+    <SafeAreaProvider>
+      <UserProvider>
+        <AppInner />
+      </UserProvider>
+    </SafeAreaProvider>
   );
 }
