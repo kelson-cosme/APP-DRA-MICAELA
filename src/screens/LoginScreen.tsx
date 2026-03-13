@@ -2,6 +2,7 @@ import "../../global.css";
 import React, { useState, useRef } from 'react';
 import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, ScrollView, Image, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { StatusBar } from 'expo-status-bar';
 import { supabase } from '../lib/supabase';
 import * as WebBrowser from 'expo-web-browser';
@@ -41,6 +42,7 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [remember, setRemember] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     async function signInWithEmail() {
         if (!email || !password) {
@@ -127,14 +129,26 @@ export default function LoginScreen({ navigation }: { navigation: any }) {
                                     value={email}
                                     onChangeText={setEmail}
                                 />
-                                <TextInput
-                                    className="w-full bg-white/90 h-14 rounded-xl px-4 text-gray-800 text-lg border border-gray-200"
-                                    placeholder="Sua Senha"
-                                    placeholderTextColor="#6B7280"
-                                    secureTextEntry
-                                    value={password}
-                                    onChangeText={setPassword}
-                                />
+                                <View className="w-full bg-white/90 h-14 rounded-xl flex-row items-center border border-gray-200 overflow-hidden">
+                                    <TextInput
+                                        className="flex-1 h-full px-4 text-gray-800 text-lg"
+                                        placeholder="Sua Senha"
+                                        placeholderTextColor="#6B7280"
+                                        secureTextEntry={!showPassword}
+                                        value={password}
+                                        onChangeText={setPassword}
+                                    />
+                                    <TouchableOpacity 
+                                        className="px-4 h-full justify-center"
+                                        onPress={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff size={22} color="#6B7280" />
+                                        ) : (
+                                            <Eye size={22} color="#6B7280" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
 
                                 <View className="w-full flex-row justify-between items-center mt-2">
                                     <TouchableOpacity className="flex-row items-center gap-2" onPress={() => setRemember(!remember)}>

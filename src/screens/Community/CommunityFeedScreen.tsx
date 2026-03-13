@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Image, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
-import { Heart, MessageSquare, Plus, Image as ImageIcon } from 'lucide-react-native';
+import { Heart, MessageSquare, Plus, Image as ImageIcon, MoreVertical } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
 import * as Haptics from 'expo-haptics';
@@ -84,10 +84,17 @@ export default function CommunityFeedScreen() {
                 setPosts(newPosts);
             } else {
                 setPosts(prev => {
-                    // Evita duplicatas
-                    const existingIds = new Set(prev.map(p => p.id));
-                    const unique = newPosts.filter(p => !existingIds.has(p.id));
-                    return [...prev, ...unique];
+                    // Combinamos os posts antigos com os novos, substituindo os que já existem (updates)
+                    const postMap = new Map(prev.map(p => [p.id, p]));
+                    
+                    newPosts.forEach(post => {
+                        postMap.set(post.id, post);
+                    });
+
+                    // Convertemos de volta para array e ordenamos por data decrescente
+                    return Array.from(postMap.values()).sort((a, b) => 
+                        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                    );
                 });
             }
 
@@ -127,9 +134,9 @@ export default function CommunityFeedScreen() {
     useEffect(() => { initialLoad(); }, []);
 
     useFocusEffect(useCallback(() => {
-        // Ao voltar para a tela, apenas atualiza a primeira página
-        // sem resetar scroll ou mostrar loading
-        fetchPage(0, false);
+        // Ao voltar para a tela, fazemos um refresh completo para garantir
+        // que posts editados/excluídos sejam refletidos e a ordem esteja correta.
+        onRefresh();
     }, []));
 
     const handleLike = async (postId: string) => {
@@ -161,33 +168,89 @@ export default function CommunityFeedScreen() {
         }
     };
 
+    const handleOptions = (post: Post) => {
+        const isAuthor = currentUserProfile?.id === post.user_id;
+        
+        if (!isAuthor) return;
+
+        Alert.alert(
+            "Opções da Publicação",
+            "Escolha uma ação",
+            [
+                { 
+                    text: "Editar", 
+                    onPress: () => navigation.navigate('CreatePost', { post: {
+                        id: post.id,
+                        content_text: post.content_text,
+                        image_url: post.image_url,
+                        user_id: post.user_id
+                    } }) 
+                },
+                { 
+                    text: "Excluir", 
+                    style: "destructive", 
+                    onPress: () => confirmDelete(post.id) 
+                },
+                { text: "Cancelar", style: "cancel" }
+            ]
+        );
+    };
+
+    const confirmDelete = (postId: string) => {
+        Alert.alert(
+            "Excluir Post",
+            "Tem certeza que deseja excluir esta publicação? Esta ação não pode ser desfeita.",
+            [
+                { text: "Cancelar", style: "cancel" },
+                { 
+                    text: "Excluir", 
+                    style: "destructive", 
+                    onPress: async () => {
+                        const { error } = await supabase.from('community_posts').delete().eq('id', postId);
+                        if (!error) {
+                            setPosts(prev => prev.filter(p => p.id !== postId));
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     const renderPost = ({ item: post }: { item: Post }) => (
         <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => navigation.navigate('PostDetail', { postId: post.id })}
             className="bg-[#2B2B2B] rounded-xl mb-4 overflow-hidden"
         >
-            <View className="p-4 flex-row items-center gap-3">
-                {profilesMap[post.user_id]?.avatar_url ? (
-                    <Image
-                        source={{ uri: profilesMap[post.user_id].avatar_url }}
-                        className="w-10 h-10 rounded-full bg-gray-600"
-                    />
-                ) : (
-                    <View className="w-10 h-10 rounded-full bg-gray-500 items-center justify-center">
-                        <Text className="text-white font-bold">
-                            {profilesMap[post.user_id]?.full_name?.charAt(0) || '?'}
+            <View className="p-4 flex-row items-center justify-between">
+                <View className="flex-row items-center gap-3">
+                    {profilesMap[post.user_id]?.avatar_url ? (
+                        <Image
+                            source={{ uri: profilesMap[post.user_id].avatar_url }}
+                            className="w-10 h-10 rounded-full bg-gray-600"
+                        />
+                    ) : (
+                        <View className="w-10 h-10 rounded-full bg-gray-500 items-center justify-center">
+                            <Text className="text-white font-bold">
+                                {profilesMap[post.user_id]?.full_name?.charAt(0) || '?'}
+                            </Text>
+                        </View>
+                    )}
+                    <View>
+                        <Text className="text-white font-bold text-base">
+                            {profilesMap[post.user_id]?.full_name || 'Usuário da Comunidade'}
+                        </Text>
+                        <Text className="text-gray-400 text-xs">
+                            {new Date(post.created_at).toLocaleDateString()}
                         </Text>
                     </View>
-                )}
-                <View>
-                    <Text className="text-white font-bold text-base">
-                        {profilesMap[post.user_id]?.full_name || 'Usuário da Comunidade'}
-                    </Text>
-                    <Text className="text-gray-400 text-xs">
-                        {new Date(post.created_at).toLocaleDateString()}
-                    </Text>
                 </View>
+
+                {currentUserProfile?.id === post.user_id && (
+                    <TouchableOpacity className="p-2" onPress={() => handleOptions(post)}>
+                        <MoreVertical color="white" size={20} />
+                    </TouchableOpacity>
+                )}
             </View>
 
             <Text className="text-white px-4 mb-3 text-base">{post.content_text}</Text>

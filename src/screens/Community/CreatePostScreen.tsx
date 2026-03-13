@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Image, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Modal } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../../lib/supabase';
 import { X, Image as ImageIcon, Send, Camera } from 'lucide-react-native';
@@ -10,11 +10,24 @@ import { decode } from 'base64-arraybuffer';
 
 export default function CreatePostScreen() {
     const navigation = useNavigation<any>();
-    const [text, setText] = useState('');
-    const [image, setImage] = useState<string | null>(null);
+    const route = useRoute<any>();
+    const editingPost = route.params?.post;
+
+    console.log('DEBUG: CreatePostScreen - editingPost received:', editingPost ? 'YES' : 'NO', editingPost?.id);
+
+    const [text, setText] = useState(editingPost?.content_text || '');
+    const [image, setImage] = useState<string | null>(editingPost?.image_url || null);
     const [uploading, setUploading] = useState(false);
     const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
     const [showImageModal, setShowImageModal] = useState(false);
+
+    // Efeito para garantir que o estado atualize se o parâmetro mudar
+    React.useEffect(() => {
+        if (editingPost) {
+            setText(editingPost.content_text || '');
+            setImage(editingPost.image_url || null);
+        }
+    }, [editingPost]);
 
     React.useEffect(() => {
         fetchUserProfile();
@@ -95,19 +108,39 @@ export default function CreatePostScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            let imageUrl = null;
-            if (image) {
+            let imageUrl = image;
+            if (image && image !== editingPost?.image_url) {
                 imageUrl = await uploadImage(image);
             }
 
-            const { error } = await supabase.from('community_posts').insert({
-                user_id: user.id,
-                content_text: text,
-                image_url: imageUrl
-            });
+            console.log('DEBUG: handlePost - Attempting to', editingPost ? 'UPDATE' : 'INSERT');
+            if (editingPost) {
+                console.log('DEBUG: handlePost - Updating post ID:', editingPost.id, 'for user:', user.id);
+                const { data, error } = await supabase.from('community_posts').update({
+                    content_text: text,
+                    image_url: imageUrl
+                })
+                .eq('id', editingPost.id)
+                .eq('user_id', user.id) // Reforça o filtro por autor
+                .select();
+                
+                console.log('DEBUG: handlePost - Update result:', { success: !error, error, data });
+                
+                if (error) throw error;
+                if (!data || data.length === 0) {
+                    throw new Error('Nenhuma linha foi atualizada. Verifique se você é o autor deste post.');
+                }
+            } else {
+                console.log('DEBUG: handlePost - Inserting new post');
+                const { error } = await supabase.from('community_posts').insert({
+                    user_id: user.id,
+                    content_text: text,
+                    image_url: imageUrl
+                });
+                if (error) throw error;
+            }
 
-            if (error) throw error;
-
+            console.log('DEBUG: handlePost - Success! Navigating back...');
             navigation.goBack();
         } catch (error: any) {
             Alert.alert('Erro', error.message);
@@ -124,7 +157,7 @@ export default function CreatePostScreen() {
                     <TouchableOpacity onPress={() => navigation.goBack()}>
                         <X color="white" size={24} />
                     </TouchableOpacity>
-                    <Text className="text-white font-bold text-lg">Criar Publicação</Text>
+                    <Text className="text-white font-bold text-lg">{editingPost ? 'Editar Publicação' : 'Criar Publicação'}</Text>
                     <TouchableOpacity
                         onPress={handlePost}
                         disabled={uploading || (!text && !image)}
@@ -133,7 +166,9 @@ export default function CreatePostScreen() {
                         {uploading ? (
                             <ActivityIndicator size="small" color="black" />
                         ) : (
-                            <Text className={`font-bold ${(!text && !image) ? 'text-gray-400' : 'text-black'}`}>Publicar</Text>
+                            <Text className={`font-bold ${(!text && !image) ? 'text-gray-400' : 'text-black'}`}>
+                                {editingPost ? 'Salvar' : 'Publicar'}
+                            </Text>
                         )}
                     </TouchableOpacity>
                 </View>

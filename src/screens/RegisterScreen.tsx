@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Text, View, ImageBackground, TextInput, TouchableOpacity, Dimensions, Alert, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Camera } from 'lucide-react-native';
+import { Camera, Eye, EyeOff } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
@@ -47,6 +47,8 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [avatarUri, setAvatarUri] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const pickImage = async () => {
         Alert.alert(
@@ -280,23 +282,47 @@ export default function RegisterScreen({ navigation }: { navigation: any }) {
                                     onChangeText={setEmail}
                                 />
 
-                                <TextInput
-                                    className="w-full bg-white/90 h-14 rounded-xl px-4 text-gray-800 text-lg border border-gray-200"
-                                    placeholder="Sua Senha"
-                                    placeholderTextColor="#6B7280"
-                                    secureTextEntry
-                                    value={password}
-                                    onChangeText={setPassword}
-                                />
+                                <View className="w-full bg-white/90 h-14 rounded-xl flex-row items-center border border-gray-200 overflow-hidden">
+                                    <TextInput
+                                        className="flex-1 h-full px-4 text-gray-800 text-lg"
+                                        placeholder="Sua Senha"
+                                        placeholderTextColor="#6B7280"
+                                        secureTextEntry={!showPassword}
+                                        value={password}
+                                        onChangeText={setPassword}
+                                    />
+                                    <TouchableOpacity 
+                                        className="px-4 h-full justify-center"
+                                        onPress={() => setShowPassword(!showPassword)}
+                                    >
+                                        {showPassword ? (
+                                            <EyeOff size={22} color="#6B7280" />
+                                        ) : (
+                                            <Eye size={22} color="#6B7280" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
 
-                                <TextInput
-                                    className="w-full bg-white/90 h-14 rounded-xl px-4 text-gray-800 text-lg border border-gray-200"
-                                    placeholder="Confirmar Senha"
-                                    placeholderTextColor="#6B7280"
-                                    secureTextEntry
-                                    value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
-                                />
+                                <View className="w-full bg-white/90 h-14 rounded-xl flex-row items-center border border-gray-200 overflow-hidden">
+                                    <TextInput
+                                        className="flex-1 h-full px-4 text-gray-800 text-lg"
+                                        placeholder="Confirmar Senha"
+                                        placeholderTextColor="#6B7280"
+                                        secureTextEntry={!showConfirmPassword}
+                                        value={confirmPassword}
+                                        onChangeText={setConfirmPassword}
+                                    />
+                                    <TouchableOpacity 
+                                        className="px-4 h-full justify-center"
+                                        onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                    >
+                                        {showConfirmPassword ? (
+                                            <EyeOff size={22} color="#6B7280" />
+                                        ) : (
+                                            <Eye size={22} color="#6B7280" />
+                                        )}
+                                    </TouchableOpacity>
+                                </View>
 
                                 <TouchableOpacity
                                     className="w-full h-14 bg-[#D4AF37] rounded-xl items-center justify-center mt-6 shadow-lg shadow-black/20"

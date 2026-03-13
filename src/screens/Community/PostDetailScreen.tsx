@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Keyboard } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
+import { useRoute, useNavigation, useFocusEffect } from '@react-navigation/native';
 import { supabase } from '../../lib/supabase';
-import { Heart, MessageSquare, Send, ChevronLeft, Trash2 } from 'lucide-react-native';
+import { Heart, MessageSquare, Send, ChevronLeft, Trash2, MoreVertical } from 'lucide-react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Animatable from 'react-native-animatable';
 import * as Haptics from 'expo-haptics';
@@ -39,12 +39,18 @@ export default function PostDetailScreen() {
     }, []);
 
     useEffect(() => {
-        fetchPostDetails();
         getCurrentUser();
     }, [postId]);
 
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchPostDetails();
+        }, [postId])
+    );
+
     const getCurrentUser = async () => {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('DEBUG: Detail Screen User:', user?.id);
         if (user) setCurrentUserId(user.id);
     };
 
@@ -179,6 +185,60 @@ export default function PostDetailScreen() {
         );
     };
 
+    const handleOptions = () => {
+        console.log('DEBUG: handleOptions Detail called. Post Author:', post?.user_id, 'Current User:', currentUserId);
+        if (!post) return;
+        
+        if (currentUserId !== post.user_id) {
+            Alert.alert("Aviso", "Você só pode editar suas próprias publicações.");
+            return;
+        }
+
+        Alert.alert(
+            "Opções da Publicação",
+            "Escolha uma ação",
+            [
+                { 
+                    text: "Editar", 
+                    onPress: () => navigation.navigate('CreatePost', { 
+                        post: { 
+                            id: post.id, 
+                            content_text: post.content_text, 
+                            image_url: post.image_url,
+                            user_id: post.user_id 
+                        } 
+                    }) 
+                },
+                { 
+                    text: "Excluir", 
+                    style: "destructive", 
+                    onPress: handleDeletePost 
+                },
+                { text: "Cancelar", style: "cancel" }
+            ]
+        );
+    };
+
+    const handleDeletePost = async () => {
+        Alert.alert(
+            "Excluir Post",
+            "Tem certeza que deseja excluir esta publicação?",
+            [
+                { text: "Cancelar", style: "cancel" },
+                { 
+                    text: "Excluir", 
+                    style: "destructive", 
+                    onPress: async () => {
+                        const { error } = await supabase.from('community_posts').delete().eq('id', postId);
+                        if (!error) {
+                            navigation.goBack();
+                        }
+                    }
+                }
+            ]
+        );
+    };
+
     if (loading) {
         return (
             <View className="flex-1 bg-[#141414] justify-center items-center">
@@ -194,11 +254,17 @@ export default function PostDetailScreen() {
             keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
         >
             <SafeAreaView className="flex-1">
-                <View className="flex-row items-center px-4 py-2 border-b border-gray-800">
-                    <TouchableOpacity onPress={() => navigation.goBack()} className="mr-4">
-                        <ChevronLeft color="white" size={24} />
+                <View className="flex-row items-center justify-between px-4 py-2 border-b border-gray-800">
+                    <View className="flex-row items-center">
+                        <TouchableOpacity onPress={() => navigation.goBack()} className="mr-4">
+                            <ChevronLeft color="white" size={24} />
+                        </TouchableOpacity>
+                        <Text className="text-white font-bold text-lg">Publicação</Text>
+                    </View>
+                    
+                    <TouchableOpacity onPress={handleOptions} className="p-2">
+                        <MoreVertical color={currentUserId === post?.user_id ? "white" : "#444"} size={22} />
                     </TouchableOpacity>
-                    <Text className="text-white font-bold text-lg">Publicação</Text>
                 </View>
 
                 <ScrollView className="flex-1">
