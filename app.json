@@ -2,7 +2,7 @@
   "expo": {
     "name": "Dra Micaela Vargas",
     "slug": "dra-micaela-vargas",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "dramicaelavargas",
     "orientation": "portrait",
     "icon": "./assets/logoApp.png",
@@ -26,6 +26,7 @@
         "backgroundColor": "#312A27"
       },
       "package": "com.dramicaelavargas.app",
+      "versionCode": 2,
       "predictiveBackGestureEnabled": false,
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
