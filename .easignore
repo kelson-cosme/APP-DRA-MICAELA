@@ -1,0 +1,11 @@
+# EAS Build should include these files even if they are in .gitignore
+!google-services.json
+!.env
+
+# But we still want to ignore the rest of the standard stuff
+node_modules/
+.expo/
+dist/
+web-build/
+/ios
+/android
