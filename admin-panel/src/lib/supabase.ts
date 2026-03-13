@@ -1,9 +1,13 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// TODO: Replace with your actual Supabase URL and Anon Key
-const supabaseUrl = 'https://jnorizuimmorlumefctn.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Impub3JpenVpbW1vcmx1bWVmY3RuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0Njg3MzgsImV4cCI6MjA4ODA0NDczOH0.9cIoN6Ws3LU5DT9zTv4OVsShYDPGGH52vo4ZPSIBTik';
+// Replace with your actual Supabase URL and Anon Key via environment variables
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.warn('Admin: Supabase URL or Anon Key is missing! Check your admin-panel/.env file.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
