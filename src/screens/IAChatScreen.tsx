@@ -194,7 +194,7 @@ export default function IAChatScreen() {
                     <ArrowLeft color="#FFFFFF" size={24} />
                 </TouchableOpacity>
                 <View>
-                    <Text className="text-white text-xl font-bold">IA Mica</Text>
+                    <Text className="text-white text-xl font-bold">Mica</Text>
                     <Text className="text-[#A0A0A0] text-sm">Assistente Virtual</Text>
                 </View>
             </View>

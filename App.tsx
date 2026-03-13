@@ -14,6 +14,7 @@ import NotificationsScreen from './src/screens/NotificationsScreen';
 import SplashScreen from './src/components/SplashScreen';
 import CompleteProfileScreen from './src/screens/CompleteProfileScreen';
 import { usePushNotifications } from './src/hooks/usePushNotifications';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { UserProvider, useUser } from './src/contexts/UserContext';
 import { supabase } from './src/lib/supabase';

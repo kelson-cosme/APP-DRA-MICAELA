@@ -8,6 +8,7 @@ import EventsScreen from '../screens/Events/EventsScreen';
 import EventsStackNavigator from './EventsStackNavigator';
 import IAChatScreen from '../screens/IAChatScreen';
 import { View, Text } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const Tab = createBottomTabNavigator();
 
@@ -19,6 +20,9 @@ const PlaceholderScreen = ({ name }: { name: string }) => (
 );
 
 export default function TabNavigator() {
+    const insets = useSafeAreaInsets();
+    const tabBarHeight = 70 + (insets.bottom > 0 ? insets.bottom - 10 : 0);
+
     return (
         <Tab.Navigator
             screenOptions={{
@@ -26,12 +30,12 @@ export default function TabNavigator() {
                 tabBarHideOnKeyboard: true,
                 tabBarStyle: {
                     backgroundColor: '#FFFFFF',
-                    height: 70,
+                    height: tabBarHeight,
                     borderTopLeftRadius: 30,
                     borderTopRightRadius: 30,
                     position: 'absolute',
                     bottom: 0,
-                    paddingBottom: 10,
+                    paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
                     paddingTop: 10,
                     borderTopWidth: 0,
                     elevation: 5,
@@ -59,7 +63,7 @@ export default function TabNavigator() {
                 }}
             />
             <Tab.Screen
-                name="IA Mica"
+                name="Mica"
                 component={IAChatScreen}
                 options={{
                     tabBarIcon: ({ color }) => <MessageCircle color={color} size={24} />,
